@@ -17,6 +17,13 @@ FileIO::FileIO(std::string video_in)
         std::cout << txt << " not found - using empty init rectangle" << std::endl;
 }
 
+FileIO::FileIO(int camera_idx)
+    : capture(camera_idx)
+{
+    if (!capture.isOpened())
+        throw std::runtime_error("Cannot open camera " + std::to_string(camera_idx));
+}
+
 cv::Rect FileIO::getInitRectangle()
 {
     if (!rect_file.is_open())

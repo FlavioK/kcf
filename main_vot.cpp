@@ -223,6 +223,14 @@ int main(int argc, char *argv[])
 
     switch (argc - optind) {
     case 1:
+        try { // If the argument is a number, try openning the camera first
+            io.reset(new FileIO(std::stoi(argv[optind])));
+            break;
+        }
+        catch (std::exception& e) {
+            // No number or camera error, continue
+        }
+
         struct stat st;
         if (stat(argv[optind], &st) != 0) {
             perror(argv[optind]);

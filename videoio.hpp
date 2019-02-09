@@ -18,6 +18,7 @@ public:
 class FileIO : public VideoIO {
 public:
     FileIO(std::string video_in);
+    FileIO(int camera_idx);
 
     cv::Rect getInitRectangle() override;
     void outputBoundingBox(const cv::Rect & bbox) override;
