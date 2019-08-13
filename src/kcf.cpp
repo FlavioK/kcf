@@ -230,7 +230,7 @@ void KCF_Tracker::init(cv::Mat &img, const cv::Rect &bbox, int fit_size_x, int f
            * p_output_sigma_factor / p_cell_size;
 
     fft.init(feature_size.width, feature_size.height, p_num_of_feats, p_num_scales * p_num_angles);
-    fft.set_window(MatDynMem(cosine_window_function(feature_size.width, feature_size.height)));
+    fft.set_window(cosine_window_function(feature_size.width, feature_size.height));
 
     // window weights, i.e. labels
     MatScales gsl(1, feature_size);

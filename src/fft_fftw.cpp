@@ -71,7 +71,7 @@ void Fftw::init(unsigned width, unsigned height, unsigned num_of_feats, unsigned
 #endif
 }
 
-void Fftw::set_window(const MatDynMem &window)
+void Fftw::set_window(const cv::Mat &window)
 {
     Fft::set_window(window);
     m_window = window;

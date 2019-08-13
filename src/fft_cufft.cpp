@@ -1,6 +1,6 @@
 #include "fft_cufft.h"
 
-cuFFT::cuFFT()
+cuFFT::cuFFT():m_window(nullptr)
 {
     CudaSafeCall(cudaSetDeviceFlags(cudaDeviceMapHost));
     cudaErrorCheck(cublasCreate(&cublas));
@@ -53,10 +53,11 @@ void cuFFT::init(unsigned width, unsigned height, unsigned num_of_feats, unsigne
 #endif
 }
 
-void cuFFT::set_window(const MatDynMem &window)
+void cuFFT::set_window(const cv::Mat &window)
 {
     Fft::set_window(window);
-    m_window = window;
+    if(m_window) delete m_window;
+    m_window = new MatDynMem(window);
 }
 
 void cuFFT::forward(const MatScales &real_input, ComplexMat &complex_result)
@@ -82,7 +83,7 @@ void cuFFT::forward_window(MatScaleFeats &feat, ComplexMat &complex_result, MatS
         for (uint ch = 0; ch < uint(feat.size[1]); ++ch) {
             cv::Mat feat_plane = feat.plane(s, ch);
             cv::Mat temp_plane = temp.plane(s, ch);
-            temp_plane = feat_plane.mul(m_window);
+            temp_plane = feat_plane.mul(*m_window);
         }
     }
 

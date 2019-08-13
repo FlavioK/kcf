@@ -6,7 +6,7 @@ void FftOpencv::init(unsigned width, unsigned height, unsigned num_of_feats, uns
     std::cout << "FFT: OpenCV" << std::endl;
 }
 
-void FftOpencv::set_window(const MatDynMem &window)
+void FftOpencv::set_window(const cv::Mat &window)
 {
     m_window = window;
 }

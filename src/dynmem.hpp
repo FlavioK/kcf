@@ -232,7 +232,11 @@ class MatDynMem : public DynMem, public cv::Mat {
         , cv::Mat(size.size(), size.data(), type, hostMem()) {}
     MatDynMem(MatDynMem &&other) = default;
     MatDynMem(const cv::Mat &other)
-        : DynMem(other.total()) , cv::Mat(other) {}
+        : DynMem(other.total()), cv::Mat(other.size(), other.type(), hostMem())
+    {
+        assert((other.type() & CV_MAT_DEPTH_MASK) == CV_32F);
+        memcpy((void*)hostMem(), (void*)other.data, other.total()*other.elemSize());
+    }
 
     void operator=(const cv::MatExpr &expr) {
         static_cast<cv::Mat>(*this) = expr;

@@ -15,7 +15,7 @@ void Fft::init(unsigned width, unsigned height, unsigned num_of_feats, unsigned 
 #endif
 }
 
-void Fft::set_window(const MatDynMem &window)
+void Fft::set_window(const cv::Mat &window)
 {
     assert(window.dims == 2);
     assert(window.size().width == int(m_width));
