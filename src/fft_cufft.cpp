@@ -75,18 +75,21 @@ void cuFFT::forward(const MatScales &real_input, ComplexMat &complex_result)
 
 void cuFFT::forward_window(MatScaleFeats &feat, ComplexMat &complex_result, MatScaleFeats &temp)
 {
+
     Fft::forward_window(feat, complex_result, temp);
 
     uint n_scales = feat.size[0];
 
-    for (uint s = 0; s < n_scales; ++s) {
-        for (uint ch = 0; ch < uint(feat.size[1]); ++ch) {
-            cv::Mat feat_plane = feat.plane(s, ch);
-            cv::Mat temp_plane = temp.plane(s, ch);
-            temp_plane = feat_plane.mul(*m_window);
-        }
+#if 0
+    float *tmp_ptr = temp.ptr<float>();
+    float *feat_ptr = feat.ptr<float>();
+    float *window_ptr = (*m_window).ptr<float>();
+    for (uint s = 0; s < feat.total(); ++s) {
+       tmp_ptr[s] = feat_ptr[s] * window_ptr[s%m_window->total()];
     }
-
+#else
+    applyWindow(feat,*m_window,temp);
+#endif
     cufftReal *temp_data = temp.deviceMem();
     if (n_scales == 1)
         cudaErrorCheck(cufftExecR2C(plan_fw, temp_data, complex_result.get_dev_data()));

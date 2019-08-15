@@ -29,7 +29,8 @@ protected:
 private:
     MatDynMem *m_window;
     cufftHandle plan_f, plan_fw, plan_i_1ch;
-#ifdef BIG_BATCH
+    void applyWindow(MatScaleFeats &patch_feats_in, MatDynMem &window, MatScaleFeats &tmp);
+   #ifdef BIG_BATCH
     cufftHandle plan_f_all_scales, plan_fw_all_scales, plan_i_all_scales;
 #endif
     cublasHandle_t cublas;

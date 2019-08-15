@@ -448,6 +448,14 @@ void KCF_Tracker::track(cv::Mat &img)
 void ThreadCtx::track(const KCF_Tracker &kcf, cv::Mat &input_rgb, cv::Mat &input_gray)
 {
     TRACE("");
+    #if defined(BIG_BATCH) && defined(OPENMP) && defined(USE_CUDA_MEMCPY)
+    /* This is needed since we launch the feature extraction in parallel and
+     * copy the singel scales into patch_feats.scale. This means, that each
+     * thread issues the cudaMemcpy operation on the same memory segment which
+     * leads to a race condition. Therefore we move patch_feats to the host
+     * beforehand in a controlled manner to aviod the copy operations. */
+    patch_feats.hostMem();
+    #endif
 
     BIG_BATCH_OMP_PARALLEL_FOR
     for (uint i = 0; i < IF_BIG_BATCH(max.size(), 1); ++i)

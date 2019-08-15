@@ -171,7 +171,9 @@ private:
     void allocMem(void){
 #ifdef USE_CUDA_MEMCPY
         mem.currOwner = CURR_HOST;
-        mem.ptr_h = new T[num_elem];
+        // Pinned memory on the host allows faster CudaMemcopy operations
+        // See: https://devblogs.nvidia.com/how-optimize-data-transfers-cuda-cc/#disqus_thread
+        CudaSafeCall(cudaMallocHost(&mem.ptr_h, num_elem * sizeof(T)));
         CudaSafeCall(cudaMalloc(&mem.ptr_d, num_elem * sizeof(T)));
 #else
         CudaSafeCall(cudaHostAlloc(&mem.ptr_h, num_elem * sizeof(T), cudaHostAllocMapped));

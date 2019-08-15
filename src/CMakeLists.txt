@@ -62,7 +62,7 @@ ELSE()
 ENDIF()
 
 IF(FFT STREQUAL "cuFFT")
-  list(APPEND KCF_LIB_SRC complexmat.cu)
+  list(APPEND KCF_LIB_SRC complexmat.cu cufft_callback.cu)
 ELSE()
   list(APPEND KCF_LIB_SRC complexmat.cpp)
 ENDIF()
