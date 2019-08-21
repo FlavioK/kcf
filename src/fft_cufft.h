@@ -27,7 +27,7 @@ protected:
     cufftHandle create_plan_inv(uint howmany) const;
 
 private:
-    MatDynMem *m_window;
+    static MatDynMem *m_window;
     cufftHandle plan_f, plan_fw, plan_i_1ch;
     void applyWindow(MatScaleFeats &patch_feats_in, MatDynMem &window, MatScaleFeats &tmp);
    #ifdef BIG_BATCH

@@ -5,6 +5,8 @@
 #include <omp.h>
 #endif
 
+cv::Mat Fftw::m_window = cv::Mat();
+
 Fftw::Fftw(){}
 
 fftwf_plan Fftw::create_plan_fwd(uint howmany) const
@@ -53,11 +55,6 @@ void Fftw::init(unsigned width, unsigned height, unsigned num_of_feats, unsigned
   #endif
 #endif
 
-#ifndef CUFFTW
-    std::cout << "FFT: FFTW" << std::endl;
-#else
-    std::cout << "FFT: cuFFTW" << std::endl;
-#endif
     fftwf_cleanup();
 
     plan_f = create_plan_fwd(1);

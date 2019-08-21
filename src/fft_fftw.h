@@ -25,7 +25,7 @@ protected:
     fftwf_plan create_plan_inv(uint howmany) const;
 
 private:
-    cv::Mat m_window;
+    static cv::Mat m_window;
     fftwf_plan plan_f = 0, plan_fw = 0, plan_i_1ch = 0;
 #ifdef BIG_BATCH
     fftwf_plan plan_f_all_scales = 0, plan_fw_all_scales = 0, plan_i_all_scales = 0;

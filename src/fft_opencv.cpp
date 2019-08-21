@@ -1,9 +1,10 @@
 #include "fft_opencv.h"
 
+cv::Mat FftOpencv::m_window = cv::Mat();
+
 void FftOpencv::init(unsigned width, unsigned height, unsigned num_of_feats, unsigned num_of_scales)
 {
     Fft::init(width, height, num_of_feats, num_of_scales);
-    std::cout << "FFT: OpenCV" << std::endl;
 }
 
 void FftOpencv::set_window(const cv::Mat &window)

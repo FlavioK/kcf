@@ -14,7 +14,7 @@ public:
     void inverse(ComplexMat &complex_input, MatScales &real_result);
     ~FftOpencv();
 private:
-    cv::Mat m_window;
+    static cv::Mat m_window;
 };
 
 #endif // FFTOPENCV_H

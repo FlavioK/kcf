@@ -1,8 +1,9 @@
 #include "fft_cufft.h"
 
-cuFFT::cuFFT():m_window(nullptr)
+MatDynMem* cuFFT::m_window = nullptr;
+
+cuFFT::cuFFT()
 {
-    CudaSafeCall(cudaSetDeviceFlags(cudaDeviceMapHost));
     cudaErrorCheck(cublasCreate(&cublas));
     cudaErrorCheck(cublasSetStream(cublas, cudaStreamPerThread));
 }
@@ -39,8 +40,6 @@ cufftHandle cuFFT::create_plan_inv(uint howmany) const
 void cuFFT::init(unsigned width, unsigned height, unsigned num_of_feats, unsigned num_of_scales)
 {
     Fft::init(width, height, num_of_feats, num_of_scales);
-
-    std::cout << "FFT: cuFFT" << std::endl;
 
     plan_f = create_plan_fwd(1);
     plan_fw = create_plan_fwd(m_num_of_feats);
