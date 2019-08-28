@@ -25,6 +25,6 @@ void cuFFT::applyWindow(MatScaleFeats &patch_feats_in, MatDynMem &window, MatSca
     float *tmpPtr = tmp.deviceMem();
 
     apply_window_kernel<<<blocks, threads>>>(featPtr, windowPtr, tmpPtr, dataSize, windowSize);
-    CudaCheckError();
-    CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
+//    CudaCheckError();
+//    CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
 }

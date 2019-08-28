@@ -149,7 +149,8 @@ private:
         if (mem.currOwner == CURR_DEV)
         {
             mem.currOwner = CURR_HOST;
-            CudaSafeCall(cudaMemcpy(mem.ptr_h, mem.ptr_d, num_elem * sizeof(T), cudaMemcpyDeviceToHost));
+            CudaSafeCall(cudaMemcpyAsync(mem.ptr_h, mem.ptr_d, num_elem * sizeof(T), cudaMemcpyDeviceToHost, cudaStreamPerThread));
+            CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
         }
     }
 
@@ -194,7 +195,8 @@ private:
             memcpy(mem.ptr_h, other.mem.ptr_h, num_elem * sizeof(T));
         }
         else{
-            CudaSafeCall(cudaMemcpy(mem.ptr_d, other.mem.ptr_d, num_elem * sizeof(T), cudaMemcpyDeviceToDevice));
+            CudaSafeCall(cudaMemcpyAsync(mem.ptr_d, other.mem.ptr_d, num_elem * sizeof(T), cudaMemcpyDeviceToDevice, cudaStreamPerThread));
+            CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
         }
         mem.currOwner = other.mem.currOwner;
     }
