@@ -39,7 +39,9 @@ void ComplexMat_::sqr_norm(DynMem &result) const
                                                                         block_res.deviceMem() + s * blocks.x, total);
         CudaCheckError();
     }
+#ifndef USE_CUDA_MEMCPY
     cudaSync();
+#endif
 
     for (uint s = 0; s < n_scales; ++s) {
         T res = 0;

@@ -22,7 +22,8 @@
 #ifdef USE_CUDA_MEMCPY
 enum Owner{
     CURR_HOST,
-    CURR_DEV
+    CURR_DEV,
+    CURR_UNK
 };
 #endif /* USE_CUDA_MEMCPY */
 
@@ -59,8 +60,9 @@ public:
 
 template <typename T> class DynMem_ {
   private:
-    MemNode mem;
     static MemoryManager mmng;
+  protected:
+    MemNode mem;
   public:
     typedef T value_type;
     const size_t num_elem;
@@ -140,26 +142,31 @@ template <typename T> class DynMem_ {
 private:
     void release()
     {
-        if (mem.ptr_h)
+#ifdef USE_CUDA_MEMCPY
+        // Invalidate owner
+        mem.currOwner = CURR_UNK;
+#endif /* USE_CUDA_MEMCPY */
+        if (mem.ptr_h){
             mmng.put(mem, num_elem*sizeof(T));
+        }
     }
 
 #ifdef USE_CUDA_MEMCPY
     void copyToHost() const {
         if (mem.currOwner == CURR_DEV)
         {
-            mem.currOwner = CURR_HOST;
             CudaSafeCall(cudaMemcpyAsync(mem.ptr_h, mem.ptr_d, num_elem * sizeof(T), cudaMemcpyDeviceToHost, cudaStreamPerThread));
             CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
         }
+        mem.currOwner = CURR_HOST;
     }
 
     void copyToDev() const {
         if (mem.currOwner == CURR_HOST)
         {
-            mem.currOwner = CURR_DEV;
             CudaSafeCall(cudaMemcpyAsync(mem.ptr_d, mem.ptr_h, num_elem * sizeof(T), cudaMemcpyHostToDevice, cudaStreamPerThread));
         }
+        mem.currOwner = CURR_DEV;
     }
 #else
     void copyToHost() const {};
@@ -171,7 +178,7 @@ private:
 #ifdef CUFFT
     void allocMem(void){
 #ifdef USE_CUDA_MEMCPY
-        mem.currOwner = CURR_HOST;
+        mem.currOwner = CURR_UNK;
         // Pinned memory on the host allows faster CudaMemcopy operations
         // See: https://devblogs.nvidia.com/how-optimize-data-transfers-cuda-cc/#disqus_thread
         CudaSafeCall(cudaMallocHost(&mem.ptr_h, num_elem * sizeof(T)));
@@ -191,10 +198,10 @@ private:
         assert(num_elem == other.num_elem);
         assert(other.mem.ptr_h != nullptr);
         assert(other.mem.ptr_d != nullptr);
-        if(mem.currOwner == CURR_HOST){
+        if(other.mem.currOwner == CURR_HOST){
             memcpy(mem.ptr_h, other.mem.ptr_h, num_elem * sizeof(T));
         }
-        else{
+        else if (other.mem.currOwner == CURR_DEV){
             CudaSafeCall(cudaMemcpyAsync(mem.ptr_d, other.mem.ptr_d, num_elem * sizeof(T), cudaMemcpyDeviceToDevice, cudaStreamPerThread));
             CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
         }
@@ -217,26 +224,26 @@ typedef DynMem_<float> DynMem;
 class MatDynMem : public DynMem, public cv::Mat {
   public:
     MatDynMem(cv::Size size, int type)
-        : DynMem(size.area() * CV_MAT_CN(type)), cv::Mat(size, type, hostMem())
+        : DynMem(size.area() * CV_MAT_CN(type)), cv::Mat(size, type, mem.ptr_h)
     {
         assert((type & CV_MAT_DEPTH_MASK) == CV_32F);
     }
     MatDynMem(int height, int width, int type)
-        : DynMem(width * height * CV_MAT_CN(type)), cv::Mat(height, width, type, hostMem())
+        : DynMem(width * height * CV_MAT_CN(type)), cv::Mat(height, width, type, mem.ptr_h)
     {
         assert((type & CV_MAT_DEPTH_MASK) == CV_32F);
     }
     MatDynMem(int ndims, const int *sizes, int type)
-        : DynMem(volume(ndims, sizes) * CV_MAT_CN(type)), cv::Mat(ndims, sizes, type, hostMem())
+        : DynMem(volume(ndims, sizes) * CV_MAT_CN(type)), cv::Mat(ndims, sizes, type, mem.ptr_h)
     {
         assert((type & CV_MAT_DEPTH_MASK) == CV_32F);
     }
     MatDynMem(std::vector<int> size, int type)
         : DynMem(std::accumulate(size.begin(), size.end(), 1, std::multiplies<int>()))
-        , cv::Mat(size.size(), size.data(), type, hostMem()) {}
+        , cv::Mat(size.size(), size.data(), type, mem.ptr_h) {}
     MatDynMem(MatDynMem &&other) = default;
     MatDynMem(const cv::Mat &other)
-        : DynMem(other.total()), cv::Mat(other.size(), other.type(), hostMem())
+        : DynMem(other.total()), cv::Mat(other.size(), other.type(), mem.ptr_h)
     {
         assert((other.type() & CV_MAT_DEPTH_MASK) == CV_32F);
         memcpy((void*)hostMem(), (void*)other.data, other.total()*other.elemSize());

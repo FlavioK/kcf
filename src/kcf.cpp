@@ -42,7 +42,9 @@ cv::Point_<_Tp> operator / (const cv::Point_<_Tp>& a, double b)
 class Kcf_Tracker_Private {
     friend KCF_Tracker;
 
-    Kcf_Tracker_Private(const KCF_Tracker &kcf) : kcf(kcf) {}
+    Kcf_Tracker_Private(const KCF_Tracker &kcf) : kcf(kcf) {
+        threadctxs.reserve(kcf.p_num_angles * kcf.p_num_scales);
+    }
 
     const KCF_Tracker &kcf;
 #ifdef BIG_BATCH
