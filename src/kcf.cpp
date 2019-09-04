@@ -744,6 +744,7 @@ cv::Mat KCF_Tracker::get_subwindow(const cv::Mat &input, int cx, int cy, int wid
     return patch;
 }
 
+#ifndef CUFFT
 void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const ComplexMat &xf, const ComplexMat &yf,
                                                   double sigma, bool auto_correlation, const ThreadCtx &ctx)
 {
@@ -781,6 +782,7 @@ void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const Comp
 
     ctx.fft.forward(ifft_res, result);
 }
+#endif
 
 float get_response_circular(cv::Point2i &pt, cv::Mat &response)
 {
