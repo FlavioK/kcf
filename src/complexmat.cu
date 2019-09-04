@@ -67,7 +67,7 @@ ComplexMat_ ComplexMat_::sqr_mag() const
     const dim3 threads(256);
     const dim3 blocks((total + threads.x - 1) / threads.x);
 
-    sqr_mag_kernel<<<threads, blocks, 0>>>((float*)this->p_data.deviceMem(),
+    sqr_mag_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                            (float*)result.p_data.deviceMem(),
                                            total);
     CudaCheckError();
@@ -93,7 +93,7 @@ ComplexMat_ ComplexMat_::conj() const
     const dim3 threads(256);
     const dim3 blocks((total + threads.x - 1) / threads.x);
 
-    conj_kernel<<<threads, blocks, 0>>>((float*)this->p_data.deviceMem(), (float*)result.p_data.deviceMem(), total);
+    conj_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(), (float*)result.p_data.deviceMem(), total);
     CudaCheckError();
 
     return result;
@@ -186,7 +186,7 @@ ComplexMat_ ComplexMat_::operator/(const ComplexMat_ &rhs) const
     const dim3 threads(256);
     const dim3 blocks((total + threads.x - 1) / threads.x);
 
-    same_num_channels_div_kernel<<<threads, blocks, 0>>>((float*)this->p_data.deviceMem(),
+    same_num_channels_div_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                          (float*)rhs.p_data.deviceMem(),
                                                          (float*)result.p_data.deviceMem(), total);
     CudaCheckError();
@@ -214,7 +214,7 @@ ComplexMat_ ComplexMat_::operator+(const ComplexMat_ &rhs) const
     const dim3 threads(256);
     const dim3 blocks((total + threads.x - 1) / threads.x);
 
-    same_num_channels_add_kernel<<<threads, blocks, 0>>>((float*)this->p_data.deviceMem(),
+    same_num_channels_add_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                          (float*)rhs.p_data.deviceMem(),
                                                          (float*)result.p_data.deviceMem(),
                                                          total);
@@ -241,7 +241,7 @@ ComplexMat_ ComplexMat_::operator*(const float &rhs) const
     const dim3 threads(256);
     const dim3 blocks((total + threads.x - 1) / threads.x);
 
-    constant_mul_kernel<<<threads, blocks, 0>>>((float*)this->p_data.deviceMem(),
+    constant_mul_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                 rhs,
                                                 (float*)result.p_data.deviceMem(),
                                                 total);
@@ -268,7 +268,7 @@ ComplexMat_ ComplexMat_::operator+(const float &rhs) const
     const dim3 threads(256);
     const dim3 blocks((total + threads.x - 1) / threads.x);
 
-    constant_add_kernel<<<threads, blocks, 0>>>((float*)this->p_data.deviceMem(),
+    constant_add_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                 rhs,
                                                 (float*)result.p_data.deviceMem(),
                                                 total);
@@ -300,7 +300,7 @@ ComplexMat_ ComplexMat_::mul(const ComplexMat_ &rhs) const
     const dim3 threads(256);
     const dim3 blocks((total + threads.x - 1) / threads.x);
 
-    one_channel_mul_kernel<<<threads, blocks, 0>>>((float*)this->p_data.deviceMem(),
+    one_channel_mul_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                    (float*)rhs.p_data.deviceMem(),
                                                    (float*)result.p_data.deviceMem(),
                                                    rows * cols, total);
