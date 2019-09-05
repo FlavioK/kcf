@@ -12,7 +12,7 @@ __global__ void kernel_correlation(float *ifft_res, size_t size, size_t sizeScal
         double elem = ifft_res[i];
         double xf_norm = xf_sqr_norm[i/sizeScale];
         double yf_norm = yf_sqr_norm[0];
-        elem = exp((-1.0 / (sigma)) * fmax(((xf_norm + yf_norm) - (2 * elem)) * normFactor, 0.0));
+        elem = exp((-1.0 / (sigma * sigma)) * fmax(((xf_norm + yf_norm) - (2 * elem)) / normFactor, 0.0));
         ifft_res[i] = __double2float_ru(elem);
         //ifft_res[i] = my_expf(-1.0f / (sigma * sigma) * fmax((xf_sqr_norm[i/sizeScale] + yf_sqr_norm[0] - 2 * ifft_res[i]) * normFactor, 0));
     }
@@ -44,19 +44,17 @@ void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const Comp
     ctx.fft.inverse(xyf_sum, ifft_res);
     DEBUG_PRINTM(ifft_res);
 
-    double numel_xf_inv = 1.f / (xf.cols * xf.rows * (xf.channels() / xf.n_scales));
-    //const dim3 threads(256);
-    //const dim3 blocks((ifft_res.num_elem + threads.x - 1) / threads.x);
-    const dim3 threads(1);
-    const dim3 blocks(1);
+    double numel_xf = (xf.cols * xf.rows * (xf.channels() / xf.n_scales));
+    const dim3 threads(256);
+    const dim3 blocks((ifft_res.num_elem + threads.x - 1) / threads.x);
 
     kernel_correlation<<<blocks, threads>>>(ifft_res.deviceMem(),
                                             ifft_res.num_elem,
                                             ifft_res.num_elem/xf.n_scales,
                                             xf_sqr_norm.deviceMem(),
                                             yf_sqr_norm.deviceMem(),
-                                            sigma*sigma,
-                                            numel_xf_inv);
+                                            sigma,
+                                            numel_xf);
 
     ctx.fft.forward(ifft_res, result);
 }
