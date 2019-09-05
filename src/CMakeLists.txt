@@ -135,7 +135,7 @@ IF(FFT STREQUAL "cuFFTW")
 ENDIF() #cuFFTW
 
 IF(FFT STREQUAL "cuFFT")
-  target_link_libraries(kcf ${CUDA_cufft_LIBRARY} ${CUDA_cublas_LIBRARY} ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
+  target_link_libraries(kcf ${CUDA_cufft_LIBRARY} ${CUDA_LIBRARIES} ${CUDA_nvToolsExt_LIBRARY})
 ENDIF()
 
 IF(PROFILING)

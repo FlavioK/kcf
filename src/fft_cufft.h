@@ -3,7 +3,6 @@
 
 #include <cufft.h>
 #include <cuda_runtime.h>
-#include <cublas_v2.h>
 
 #include "fft.h"
 #include "cuda_error_check.hpp"
@@ -30,10 +29,10 @@ private:
     static MatDynMem *m_window;
     cufftHandle plan_f, plan_fw, plan_i_1ch;
     void applyWindow(MatScaleFeats &patch_feats_in, MatDynMem &window, MatScaleFeats &tmp);
+    void scale(MatScales &data, float alpha);
    #ifdef BIG_BATCH
     cufftHandle plan_f_all_scales, plan_fw_all_scales, plan_i_all_scales;
 #endif
-    cublasHandle_t cublas;
 };
 
 #endif // FFT_CUDA_H

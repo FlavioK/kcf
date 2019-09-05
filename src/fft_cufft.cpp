@@ -2,11 +2,7 @@
 
 MatDynMem* cuFFT::m_window = nullptr;
 
-cuFFT::cuFFT()
-{
-    cudaErrorCheck(cublasCreate(&cublas));
-    cudaErrorCheck(cublasSetStream(cublas, cudaStreamPerThread));
-}
+cuFFT::cuFFT(){}
 
 cufftHandle cuFFT::create_plan_fwd(uint howmany) const
 {
@@ -113,16 +109,12 @@ void cuFFT::inverse(ComplexMat &complex_input, MatScales &real_result)
     else
         cudaErrorCheck(cufftExecC2R(plan_i_all_scales, in, out));
 #endif
-    cudaErrorCheck(cublasSscal(cublas, real_result.total(), &alpha, out, 1));
-    // The result is a cv::Mat, which will be accesses by CPU, so we
-    // must synchronize with the GPU here
+    scale(real_result, alpha);
     CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
 }
 
 cuFFT::~cuFFT()
 {
-    cudaErrorCheck(cublasDestroy(cublas));
-
     cudaErrorCheck(cufftDestroy(plan_f));
     cudaErrorCheck(cufftDestroy(plan_fw));
     cudaErrorCheck(cufftDestroy(plan_i_1ch));
