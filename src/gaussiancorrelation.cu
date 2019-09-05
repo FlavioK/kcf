@@ -25,16 +25,12 @@ void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const Comp
     DEBUG_PRINTM(xf);
     DEBUG_PRINT(xf_sqr_norm.num_elem);
     xf.sqr_norm(xf_sqr_norm);
-    for (uint s = 0; s < xf.n_scales; ++s)
-        DEBUG_PRINT(xf_sqr_norm[s]);
     if (auto_correlation) {
         yf_sqr_norm = xf_sqr_norm;
     } else {
         DEBUG_PRINTM(yf);
         yf.sqr_norm(yf_sqr_norm);
     }
-    for (uint s = 0; s < yf.n_scales; ++s)
-        DEBUG_PRINTM(yf_sqr_norm[s]);
     xyf = auto_correlation ? xf.sqr_mag() : xf * yf.conj(); // xf.muln(yf.conj());
     DEBUG_PRINTM(xyf);
 

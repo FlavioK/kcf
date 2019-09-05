@@ -1,26 +1,55 @@
 #include "complexmat.hpp"
+#include <cuda_runtime_api.h>
 
+__inline__ __device__ float warpReduceSum(float val) {
+  for (int offset = warpSize/2; offset > 0; offset /= 2)
+#ifndef CUDART_VERSION
+#error CUDART_VERSION Undefined!
+#elif (CUDART_VERSION == 8000)
+    val +=  __shfl_down(val, offset);
+#elif (CUDART_VERSION == 9000)
+    val +=  __shfl_down_sync(0xffffffff, val, offset);
+#else
+#error Unknown CUDART_VERSION!
+#endif
+  return val;
+}
 
-__global__ void sqr_norm_kernel(const float *in, float *block_res, int total)
+__inline__ __device__ float blockReduceSum(float val) {
+
+  static __shared__ float shared[32]; // Shared mem for 32 partial sums
+  int lane = threadIdx.x % warpSize;
+  int wid = threadIdx.x / warpSize;
+
+  val = warpReduceSum(val);     // Each warp performs partial reduction
+
+  if (lane==0) shared[wid]=val; // Write reduced value to shared memory
+
+  __syncthreads();              // Wait for all partial reductions
+
+  //read from shared memory only if that warp existed
+  val = (threadIdx.x < blockDim.x / warpSize) ? shared[lane] : 0;
+
+  if (wid==0) val = warpReduceSum(val); //Final reduce within first warp
+
+  return val;
+}
+
+__global__ void sqr_norm_kernel(const float *in, float *block_res, const size_t nofScales, const size_t totalScale, const float colsrows)
 {
-    extern __shared__ float sdata[];
-    int in_idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
-    int i = threadIdx.x;
-    unsigned ins = blockDim.x;
-
-    if (in_idx >= total * 2)
-        sdata[i] = 0;
-    else
-        sdata[i] = in[in_idx] * in[in_idx] + in[in_idx + 1] * in[in_idx + 1];
-
-    for (unsigned outs = (ins + 1) / 2; ins > 1; ins = outs, outs = (outs + 1) / 2) {
-        __syncthreads();
-        if (i + outs < ins)
-            sdata[i] += sdata[i + outs];
+    for(size_t scale = 0; scale < nofScales; scale++){
+        float sum = 0.0;
+        for (size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+             i < totalScale;
+             i += blockDim.x * gridDim.x)
+        {
+            int in_idx = 2 * i;
+            sum += in[in_idx] * in[in_idx] + in[in_idx + 1] * in[in_idx + 1];
+        }
+        sum = blockReduceSum(sum);
+        if (threadIdx.x==0)
+            block_res[scale] = sum/colsrows;
     }
-
-    if (i == 0)
-        block_res[blockIdx.x] = sdata[0];
 }
 
 void ComplexMat_::sqr_norm(DynMem &result) const
@@ -28,27 +57,16 @@ void ComplexMat_::sqr_norm(DynMem &result) const
 
     assert(result.num_elem == n_scales);
 
-    const uint total = n_channels / n_scales * rows * cols;
+    const uint total = n_channels * rows * cols;
+    const uint totalScale = total / n_scales;
     const dim3 threads(1024);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 blocks(1);
 
-    DynMem block_res(blocks.x * n_scales);
-
-    for (uint s = 0; s < n_scales; ++s) {
-        sqr_norm_kernel<<<blocks, threads, threads.x * sizeof(float)>>>((const float*)(p_data.deviceMem() + s * total),
-                                                                        block_res.deviceMem() + s * blocks.x, total);
-        CudaCheckError();
-    }
+    sqr_norm_kernel<<<blocks, threads, threads.x * sizeof(float)>>>((const float*)(p_data.deviceMem()), result.deviceMem(), n_scales, totalScale, cols*rows);
+    CudaCheckError();
 #ifndef USE_CUDA_MEMCPY
     cudaSync();
 #endif
-
-    for (uint s = 0; s < n_scales; ++s) {
-        T res = 0;
-        for (int i = 0; i < blocks.x; i++)
-            res += block_res[s * blocks.x + i];
-        result.hostMem()[s] = res / static_cast<T>(cols * rows);
-    }
 }
 
 __global__ void sqr_mag_kernel(const float *data, float *result, int total)
