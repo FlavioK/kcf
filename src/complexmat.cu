@@ -71,9 +71,10 @@ void ComplexMat_::sqr_norm(DynMem &result) const
 
 __global__ void sqr_mag_kernel(const float *data, float *result, int total)
 {
-    int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+    for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+         idx < total * 2;
+         idx += gridDim.x*blockDim.x){
 
-    if (idx / 2 < total) {
         result[idx] = data[idx] * data[idx] + data[idx + 1] * data[idx + 1];
         result[idx + 1] = 0;
     }
@@ -84,8 +85,9 @@ ComplexMat_ ComplexMat_::sqr_mag() const
     ComplexMat_ result = ComplexMat_::same_size(*this);
 
     const uint total = n_channels * rows * cols;
-    const dim3 threads(256);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
 
     sqr_mag_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                            (float*)result.p_data.deviceMem(),
@@ -97,9 +99,10 @@ ComplexMat_ ComplexMat_::sqr_mag() const
 
 __global__ void conj_kernel(const float *data, float *result, int total)
 {
-    int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+    for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+         idx < total*2;
+         idx += gridDim.x*blockDim.x){
 
-    if (idx / 2 < total) {
         result[idx] = data[idx];
         result[idx + 1] = -data[idx + 1];
     }
@@ -110,8 +113,9 @@ ComplexMat_ ComplexMat_::conj() const
     ComplexMat_ result = ComplexMat_::same_size(*this);
 
     const uint total = n_channels * rows * cols;
-    const dim3 threads(256);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
 
     conj_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(), (float*)result.p_data.deviceMem(), total);
     CudaCheckError();
@@ -121,15 +125,15 @@ ComplexMat_ ComplexMat_::conj() const
 
 __global__ static void sum_channels(float *dest, const float *src, uint channels, uint num_channel_elem)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    for (int idx = blockIdx.x * blockDim.x + threadIdx.x;
+         idx < num_channel_elem;
+         idx += gridDim.x * blockDim.x){
 
-    if (idx >= num_channel_elem)
-        return;
-
-    float acc = 0;
-    for (uint i = 0; i < channels; ++i)
-        acc += src[idx + i * num_channel_elem];
-    dest[idx] = acc;
+        float acc = 0;
+        for (uint i = 0; i < channels; ++i)
+            acc += src[idx + i * num_channel_elem];
+        dest[idx] = acc;
+    }
 }
 
 ComplexMat_ ComplexMat_::sum_over_channels() const
@@ -141,8 +145,9 @@ ComplexMat_ ComplexMat_::sum_over_channels() const
     ComplexMat_ result(this->rows, this->cols, 1, n_scales);
 
     const uint total = rows * cols * 2;
-    const dim3 threads(256);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
 
     for (uint scale = 0; scale < n_scales; ++scale) {
         sum_channels<<<blocks, threads>>>(reinterpret_cast<float*>(result.p_data.deviceMem() + scale * rows * cols),
@@ -154,9 +159,9 @@ ComplexMat_ ComplexMat_::sum_over_channels() const
 
 __global__ void same_num_channels_mul_kernel(const float *data_l, const float *data_r, float *result, int total)
 {
-    int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
-
-    if (idx / 2 < total) {
+    for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+         idx < total*2;
+         idx += gridDim.x*blockDim.x){
         result[idx] = data_l[idx] * data_r[idx] - data_l[idx + 1] * data_r[idx + 1];
         result[idx + 1] = data_l[idx] * data_r[idx + 1] + data_l[idx + 1] * data_r[idx];
     }
@@ -170,8 +175,9 @@ ComplexMat_ ComplexMat_::operator*(const ComplexMat_ &rhs) const
     ComplexMat_ result = ComplexMat_::same_size(*this);
 
     const uint total = n_channels / n_scales * rows * cols;
-    const dim3 threads(256);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
 
     for (uint s = 0; s < n_scales; ++s) {
         same_num_channels_mul_kernel<<<blocks, threads, 0>>>((float*)(this->p_data.deviceMem() + s * total),
@@ -186,9 +192,9 @@ ComplexMat_ ComplexMat_::operator*(const ComplexMat_ &rhs) const
 
 __global__ void same_num_channels_div_kernel(const float *data_l, const float *data_r, float *result, unsigned total)
 {
-    int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
-
-    if (idx / 2 < total) {
+    for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+         idx < 2 * total;
+         idx += gridDim.x*blockDim.x){
         result[idx] = (data_l[idx] * data_r[idx] + data_l[idx + 1] * data_r[idx + 1]) /
                (data_r[idx] * data_r[idx] + data_r[idx + 1] * data_r[idx + 1]);
         result[idx + 1] = (data_l[idx + 1] * data_r[idx] - data_l[idx] * data_r[idx + 1]) /
@@ -203,8 +209,9 @@ ComplexMat_ ComplexMat_::operator/(const ComplexMat_ &rhs) const
     ComplexMat_ result = ComplexMat_::same_size(*this);
 
     const uint total = n_channels * rows * cols;
-    const dim3 threads(256);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
 
     same_num_channels_div_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                          (float*)rhs.p_data.deviceMem(),
@@ -216,9 +223,9 @@ ComplexMat_ ComplexMat_::operator/(const ComplexMat_ &rhs) const
 
 __global__ void same_num_channels_add_kernel(const float *data_l, const float *data_r, float *result, int total)
 {
-    int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
-
-    if (idx / 2 < total) {
+    for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+         idx < total*2;
+         idx += gridDim.x*blockDim.x){
         result[idx] = data_l[idx] + data_r[idx];
         result[idx + 1] = data_l[idx + 1] + data_r[idx + 1];
     }
@@ -231,8 +238,9 @@ ComplexMat_ ComplexMat_::operator+(const ComplexMat_ &rhs) const
     ComplexMat_ result = ComplexMat_::same_size(*this);
 
     const uint total = n_channels * rows * cols;
-    const dim3 threads(256);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
 
     same_num_channels_add_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                          (float*)rhs.p_data.deviceMem(),
@@ -245,9 +253,10 @@ ComplexMat_ ComplexMat_::operator+(const ComplexMat_ &rhs) const
 
 __global__ void constant_mul_kernel(const float *data_l, float constant, float *result, int total)
 {
-    int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
 
-    if (idx / 2 < total) {
+    for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+         idx < 2*total;
+         idx += gridDim.x*blockDim.x){
         result[idx] = data_l[idx] * constant;
         result[idx + 1] = data_l[idx + 1] * constant;
     }
@@ -258,8 +267,9 @@ ComplexMat_ ComplexMat_::operator*(const float &rhs) const
     ComplexMat_ result = ComplexMat_::same_size(*this);
 
     const uint total = n_channels * rows * cols;
-    const dim3 threads(256);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+   // const dim3 blocks((total + threads.x - 1) / threads.x);
 
     constant_mul_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                 rhs,
@@ -272,9 +282,9 @@ ComplexMat_ ComplexMat_::operator*(const float &rhs) const
 
 __global__ void constant_add_kernel(const float *data_l, float constant, float *result, int total)
 {
-    int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
-
-    if (idx / 2 < total) {
+    for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+         idx < total * 2;
+         idx += gridDim.x*blockDim.x){
         result[idx] = data_l[idx] + constant;
         result[idx + 1] = data_l[idx + 1];
     }
@@ -285,8 +295,9 @@ ComplexMat_ ComplexMat_::operator+(const float &rhs) const
     ComplexMat_ result = ComplexMat_::same_size(*this);
 
     const uint total = n_channels * rows * cols;
-    const dim3 threads(256);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
 
     constant_add_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                 rhs,
@@ -300,10 +311,10 @@ ComplexMat_ ComplexMat_::operator+(const float &rhs) const
 __global__ void one_channel_mul_kernel(const float *data_l, const float *data_r, float *result,
                                        int channel_total, int total)
 {
-    int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
-    int one_ch_idx = idx  % (2 * channel_total);
-
-    if (idx / 2 < total) {
+    for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+        idx < total * 2;
+        idx += gridDim.x * blockDim.x){
+        int one_ch_idx = idx  % (2 * channel_total);
         result[idx] = data_l[idx] * data_r[one_ch_idx] - data_l[idx + 1] * data_r[one_ch_idx + 1];
         result[idx + 1] = data_l[idx] * data_r[one_ch_idx + 1] + data_l[idx + 1] * data_r[one_ch_idx];
     }
@@ -317,8 +328,9 @@ ComplexMat_ ComplexMat_::mul(const ComplexMat_ &rhs) const
     ComplexMat_ result = ComplexMat_::same_size(*this);
 
     const uint total = n_channels * rows * cols;
-    const dim3 threads(256);
-    const dim3 blocks((total + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
 
     one_channel_mul_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(),
                                                    (float*)rhs.p_data.deviceMem(),

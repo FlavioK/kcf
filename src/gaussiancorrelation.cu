@@ -41,8 +41,9 @@ void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const Comp
     DEBUG_PRINTM(ifft_res);
 
     double numel_xf = (xf.cols * xf.rows * (xf.channels() / xf.n_scales));
-    const dim3 threads(256);
-    const dim3 blocks((ifft_res.num_elem + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((ifft_res.num_elem + threads.x - 1) / threads.x);
 
     kernel_correlation<<<blocks, threads>>>(ifft_res.deviceMem(),
                                             ifft_res.num_elem,

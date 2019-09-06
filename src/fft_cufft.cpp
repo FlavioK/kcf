@@ -110,7 +110,6 @@ void cuFFT::inverse(ComplexMat &complex_input, MatScales &real_result)
         cudaErrorCheck(cufftExecC2R(plan_i_all_scales, in, out));
 #endif
     scale(real_result, alpha);
-    CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
 }
 
 cuFFT::~cuFFT()

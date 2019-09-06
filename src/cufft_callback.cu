@@ -17,8 +17,9 @@ void cuFFT::applyWindow(MatScaleFeats &patch_feats_in, MatDynMem &window, MatSca
 
     const size_t dataSize = patch_feats_in.total();
     const size_t windowSize = window.total();
-    const dim3 threads(256);
-    const dim3 blocks((dataSize + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((dataSize + threads.x - 1) / threads.x);
 
     const float *featPtr = patch_feats_in.deviceMem();
     const float *windowPtr = window.deviceMem();
@@ -44,9 +45,13 @@ void cuFFT::scale(MatScales &data, float alpha){
     float *out = in;
 
     const size_t dataSize = data.total();
-    const dim3 threads(256);
-    const dim3 blocks((dataSize + threads.x - 1) / threads.x);
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((dataSize + threads.x - 1) / threads.x);
 
     scale_kernel<<<blocks, threads>>>(in, out, dataSize, alpha);
     CudaCheckError();
+#ifndef USE_CUDA_MEMCPY
+    CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
+#endif
 }
