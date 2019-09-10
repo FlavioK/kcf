@@ -187,6 +187,9 @@ ComplexMat_ ComplexMat_::operator*(const ComplexMat_ &rhs) const
         CudaCheckError();
     }
 
+#ifndef USE_CUDA_MEMCPY
+    cudaSync();
+#endif
     return result;
 }
 

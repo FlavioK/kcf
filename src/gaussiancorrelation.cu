@@ -52,7 +52,7 @@ void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const Comp
                                             yf_sqr_norm.deviceMem(),
                                             sigma,
                                             numel_xf);
-
+    CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
     ctx.fft.forward(ifft_res, result);
 }
 #endif
