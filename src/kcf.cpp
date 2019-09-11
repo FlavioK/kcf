@@ -12,6 +12,9 @@
 
 DbgTracer __dbgTracer;
 
+// Create static member pthread_barrier of ThreadCtx
+pthread_barrier_t ThreadCtx::barrier;
+
 template <typename T>
 T clamp(const T& n, const T& lower, const T& upper)
 {
@@ -208,6 +211,8 @@ void KCF_Tracker::init(cv::Mat &img, const cv::Rect &bbox, int fit_size_x, int f
     d->threadctxs[0].fft.init(feature_size.width, feature_size.height, p_num_of_feats, p_num_scales * p_num_angles);
 #endif
 
+    // Initialize pthread barrier
+    if(ThreadCtx::initBarrier() < 0) exit(0);
     gaussian_correlation.reset(new GaussianCorrelation(1, p_num_of_feats, feature_size));
 
     p_current_center = p_init_pose.center();
@@ -232,6 +237,7 @@ void KCF_Tracker::init(cv::Mat &img, const cv::Rect &bbox, int fit_size_x, int f
     p_output_sigma = std::sqrt(p_init_pose.w * p_init_pose.h * double(fit_size.area()) / p_windows_size.area())
            * p_output_sigma_factor / p_cell_size;
 
+    // Set FFT window
     d->threadctxs[0].fft.set_window(cosine_window_function(feature_size.width, feature_size.height));
 
     // window weights, i.e. labels
@@ -470,14 +476,16 @@ void ThreadCtx::track(const KCF_Tracker &kcf, cv::Mat &input_rgb, cv::Mat &input
                 .copyTo(patch_feats.scale(i));
         DEBUG_PRINT(patch_feats.scale(i));
     }
-
     fft.forward_window(patch_feats, zf, temp);
     DEBUG_PRINTM(zf);
 
     if (kcf.m_use_linearkernel) {
         kzf = zf.mul(kcf.model->model_alphaf).sum_over_channels();
     } else {
+        pthread_barrier_wait(&barrier);
+
         gaussian_correlation(kzf, zf, kcf.model->model_xf, kcf.p_kernel_sigma, false, (*this));
+
         DEBUG_PRINTM(kzf);
         kzf = kzf.mul(kcf.model->model_alphaf);
     }

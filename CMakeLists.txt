@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 
 project(kcf_tracker)
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -pedantic -Wno-long-long -fno-omit-frame-pointer")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -pedantic -Wno-long-long -fno-omit-frame-pointer -pthread")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(default_build_type "Release")
   message(STATUS "Setting build type to '${default_build_type}' as none was specified.")

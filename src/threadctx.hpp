@@ -72,8 +72,17 @@ struct ThreadCtx {
     ThreadCtx(ThreadCtx &&) = default;
 
     void track(const KCF_Tracker &kcf, cv::Mat &input_rgb, cv::Mat &input_gray);
+    static int initBarrier(void) {
+#if !defined(BIG_BATCH) && defined(OPENMP)
+        return pthread_barrier_init(&barrier, NULL, 3);
+#else
+        return pthread_barrier_init(&barrier, NULL, 1);
+#endif
+    }
+
 private:
     FFT &fft;
+    static pthread_barrier_t barrier;
     cv::Size roi;
     uint num_features;
     uint num_scales;

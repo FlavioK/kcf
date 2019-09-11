@@ -66,6 +66,7 @@ void cuFFT::forward(const MatScales &real_input, ComplexMat &complex_result)
     else
         cudaErrorCheck(cufftExecR2C(plan_f_all_scales, in, complex_result.get_dev_data()));
 #endif
+    CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
 }
 
 void cuFFT::forward_window(MatScaleFeats &feat, ComplexMat &complex_result, MatScaleFeats &temp)
@@ -92,6 +93,7 @@ void cuFFT::forward_window(MatScaleFeats &feat, ComplexMat &complex_result, MatS
     else
         cudaErrorCheck(cufftExecR2C(plan_fw_all_scales, temp_data, complex_result.get_dev_data()));
 #endif
+    CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
 }
 
 void cuFFT::inverse(ComplexMat &complex_input, MatScales &real_result)
