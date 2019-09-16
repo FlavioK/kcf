@@ -19,14 +19,15 @@ __global__ void kernel_correlation(float *ifft_res, size_t size, size_t sizeScal
 }
 
 void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const ComplexMat &xf, const ComplexMat &yf,
-                                                  double sigma, bool auto_correlation, const ThreadCtx &ctx)
+                                                  double sigma, bool auto_correlation, ThreadCtx &ctx)
 {
     TRACE("");
+    if(!auto_correlation){
+        pthread_barrier_wait(&ctx.barrier);
 #ifdef PROFILE_GAUSSIAN
-    struct timespec start, end;
-    if(!auto_correlation)
-    clock_gettime(CLOCK_MONOTONIC, &start);
+        clock_gettime(CLOCK_MONOTONIC, &ctx.start);
 #endif /* PROFILE_GAUSSIAN */
+    }
     DEBUG_PRINTM(xf);
     DEBUG_PRINT(xf_sqr_norm.num_elem);
     xf.sqr_norm(xf_sqr_norm);
@@ -60,10 +61,8 @@ void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const Comp
 #ifdef PROFILE_GAUSSIAN
     CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
     if(!auto_correlation){
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        double timems = 0;
-        timems = (end.tv_sec*1e3+end.tv_nsec/1e6)-(start.tv_sec*1e3+start.tv_nsec/1e6);
-        fprintf(stderr,"%lf\n",timems);
+        clock_gettime(CLOCK_MONOTONIC, &ctx.end);
+        pthread_barrier_wait(&ctx.barrier);
     }
 #endif /* PROFILE_GAUSSIAN */
     ctx.fft.forward(ifft_res, result);

@@ -152,7 +152,7 @@ private:
             , ifft_res(num_scales, size)
             , k(num_scales, size)
         {}
-        void operator()(ComplexMat &result, const ComplexMat &xf, const ComplexMat &yf, double sigma, bool auto_correlation, const ThreadCtx &ctx);
+        void operator()(ComplexMat &result, const ComplexMat &xf, const ComplexMat &yf, double sigma, bool auto_correlation, ThreadCtx &ctx);
 
       private:
         DynMem xf_sqr_norm;

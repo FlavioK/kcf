@@ -5,6 +5,7 @@
 #include "threadctx.hpp"
 #include "debug.h"
 #include <limits>
+#include <omp.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -416,8 +417,26 @@ void KCF_Tracker::track(cv::Mat &img)
 
 #else  // !ASYNC
     NORMAL_OMP_PARALLEL_FOR
-    for (uint i = 0; i < d->threadctxs.size(); ++i)
+    for (uint i = 0; i < d->threadctxs.size(); ++i){
         d->threadctxs[i].track(*this, input_rgb, input_gray);
+#ifdef PROFILE_GAUSSIAN
+        // Print results
+        if(omp_get_thread_num() == 0){
+            double start, end, minStart=DBL_MAX, maxEnd=0.0;
+            struct timespec tmp;
+            //Get smalles start time
+            for(int j = 0; j<3; j++){
+               tmp= d->threadctxs[i+j*5].start;
+               start = tmp.tv_sec*1e3 + tmp.tv_nsec/1e6;
+               tmp = d->threadctxs[i+j*5].end;
+               end = tmp.tv_sec*1e3 + tmp.tv_nsec/1e6;
+               if(start < minStart) minStart = start;
+               if(end > maxEnd) maxEnd = end;
+            }
+            std::cerr << maxEnd-minStart << std::endl;
+        }
+#endif
+    }
 #endif
 
     cv::Point2d new_location;
@@ -482,8 +501,6 @@ void ThreadCtx::track(const KCF_Tracker &kcf, cv::Mat &input_rgb, cv::Mat &input
     if (kcf.m_use_linearkernel) {
         kzf = zf.mul(kcf.model->model_alphaf).sum_over_channels();
     } else {
-        pthread_barrier_wait(&barrier);
-
         gaussian_correlation(kzf, zf, kcf.model->model_xf, kcf.p_kernel_sigma, false, (*this));
 
         DEBUG_PRINTM(kzf);
@@ -754,7 +771,7 @@ cv::Mat KCF_Tracker::get_subwindow(const cv::Mat &input, int cx, int cy, int wid
 
 #ifndef CUFFT
 void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const ComplexMat &xf, const ComplexMat &yf,
-                                                  double sigma, bool auto_correlation, const ThreadCtx &ctx)
+                                                  double sigma, bool auto_correlation, ThreadCtx &ctx)
 {
     TRACE("");
     DEBUG_PRINTM(xf);

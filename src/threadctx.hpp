@@ -74,8 +74,10 @@ struct ThreadCtx {
     void track(const KCF_Tracker &kcf, cv::Mat &input_rgb, cv::Mat &input_gray);
     static int initBarrier(void) {
 #if !defined(BIG_BATCH) && defined(OPENMP)
+        std::cout << "Initialized barrier for 3 threads" << std::endl;
         return pthread_barrier_init(&barrier, NULL, 3);
 #else
+        std::cout << "Initialized barrier for 1 threads" << std::endl;
         return pthread_barrier_init(&barrier, NULL, 1);
 #endif
     }
@@ -87,6 +89,10 @@ private:
     uint num_features;
     uint num_scales;
     uint num_angles;
+#ifdef PROFILE_GAUSSIAN
+    struct timespec start;
+    struct timespec end;
+#endif
     cv::Size freq_size = Fft::freq_size(roi);
 
     MatScaleFeats patch_feats{num_scales * num_angles, num_features, roi};
