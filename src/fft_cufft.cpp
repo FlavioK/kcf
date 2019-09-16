@@ -53,6 +53,7 @@ void cuFFT::set_window(const cv::Mat &window)
     Fft::set_window(window);
     if(m_window) delete m_window;
     m_window = new MatDynMem(window);
+    m_window->deviceMem();
 }
 
 void cuFFT::forward(const MatScales &real_input, ComplexMat &complex_result)
