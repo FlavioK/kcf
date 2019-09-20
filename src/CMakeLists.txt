@@ -14,6 +14,7 @@ option(CUDA_DEBUG "Enables error cheking for cuda and cufft. " OFF)
 option(BIG_BATCH "Execute all FFT calculation in a single batch. This can improve paralelism and reduce GPU offloading overhead." OFF)
 option(USE_CUDA_MEMCPY "Use the normal CUDA memory model with CUDA memcopy operations to move to and from the device." OFF)
 option(PROFILE_GAUSSIAN "Profiles the processing time of the CUDA-version of the GaussianCorrelation function" OFF)
+option(USE_KERNEL_SCHED "Controls startime of CUDA-blocks with the NVIDIA globaltimer" OFF)
 
 IF(PROFILING)
   add_definitions(-DPROFILING )
@@ -34,9 +35,23 @@ IF(USE_CUDA_MEMCPY)
   MESSAGE(STATUS "CUDA using memcpy operations")
 ENDIF()
 
+IF( NOT (FFT STREQUAL "cuFFT") AND PROFILE_GAUSSIAN)
+  message(SEND_ERROR "Gaussian correlation can only be profiled if cuFFT is enabled")
+ENDIF()
+
+IF( NOT (FFT STREQUAL "cuFFT") AND USE_KERNEL_SCHED)
+  message(SEND_ERROR "Gaussian correlation can only be scheduled if cuFFT is enabled")
+ENDIF()
+
 IF(PROFILE_GAUSSIAN)
   add_definitions(-DPROFILE_GAUSSIAN )
+  list(APPEND KCF_LIB_SRC sched-util/utility_func.cu sched-util/utility_func.cuh sched-util/utility_host.hpp sched-util/utility_host.cpp sched-util/profCUDA.cpp sched-util/profCUDA.hpp)
   MESSAGE(STATUS "Profiling of GaussianCorrelation enabled")
+ENDIF()
+
+IF(USE_KERNEL_SCHED)
+  add_definitions(-DUSE_KERNEL_SCHED )
+  MESSAGE(STATUS "Blockstart time is controlled with NVIDIA globaltimer")
 ENDIF()
 
 IF (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") AND NOT OPENMP)

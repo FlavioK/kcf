@@ -67,7 +67,15 @@ KCF_Tracker::KCF_Tracker(double padding, double kernel_sigma, double lambda, dou
 
 KCF_Tracker::KCF_Tracker() {}
 
-KCF_Tracker::~KCF_Tracker() {}
+KCF_Tracker::~KCF_Tracker() {
+#ifdef PROFILE_GAUSSIAN
+    for (uint i = 0; i < d->threadctxs.size(); ++i){
+        std::ostringstream fileName;
+        fileName << "threadCtx_" << i << ".log";
+        d->threadctxs[i].profData.printData(fileName.str());
+    }
+#endif
+}
 
 void KCF_Tracker::train(cv::Mat input_rgb, cv::Mat input_gray, double interp_factor)
 {
@@ -205,6 +213,9 @@ void KCF_Tracker::init(cv::Mat &img, const cv::Rect &bbox, int fit_size_x, int f
         for (auto angle : p_angles){
             d->threadctxs.emplace_back(feature_size, (int)p_num_of_feats, scale, angle);
             d->threadctxs.back().fft.init(feature_size.width, feature_size.height, p_num_of_feats, p_num_scales * p_num_angles);
+#ifdef PROFILE_GAUSSIAN
+            d->threadctxs.back().profData.init();
+#endif
         }
     }
 #else
@@ -214,6 +225,7 @@ void KCF_Tracker::init(cv::Mat &img, const cv::Rect &bbox, int fit_size_x, int f
 
     // Initialize pthread barrier
     if(ThreadCtx::initBarrier() < 0) exit(0);
+
     gaussian_correlation.reset(new GaussianCorrelation(1, p_num_of_feats, feature_size));
 
     p_current_center = p_init_pose.center();
@@ -419,23 +431,6 @@ void KCF_Tracker::track(cv::Mat &img)
     NORMAL_OMP_PARALLEL_FOR
     for (uint i = 0; i < d->threadctxs.size(); ++i){
         d->threadctxs[i].track(*this, input_rgb, input_gray);
-#ifdef PROFILE_GAUSSIAN
-        // Print results
-        if(omp_get_thread_num() == 0){
-            double start, end, minStart=DBL_MAX, maxEnd=0.0;
-            struct timespec tmp;
-            //Get smalles start time
-            for(int j = 0; j<3; j++){
-               tmp= d->threadctxs[i+j*5].start;
-               start = tmp.tv_sec*1e3 + tmp.tv_nsec/1e6;
-               tmp = d->threadctxs[i+j*5].end;
-               end = tmp.tv_sec*1e3 + tmp.tv_nsec/1e6;
-               if(start < minStart) minStart = start;
-               if(end > maxEnd) maxEnd = end;
-            }
-            std::cerr << maxEnd-minStart << std::endl;
-        }
-#endif
     }
 #endif
 

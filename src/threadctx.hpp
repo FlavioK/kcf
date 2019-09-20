@@ -6,6 +6,10 @@
 #include "kcf.h"
 #include "complexmat.hpp"
 #include <vector>
+#ifdef PROFILE_GAUSSIAN
+#include "sched-util/profCUDA.hpp"
+#endif
+
 
 #ifdef FFTW
 #include "fft_fftw.h"
@@ -90,8 +94,7 @@ private:
     uint num_scales;
     uint num_angles;
 #ifdef PROFILE_GAUSSIAN
-    struct timespec start;
-    struct timespec end;
+    ProfCUDA profData;
 #endif
     cv::Size freq_size = Fft::freq_size(roi);
 

@@ -1,5 +1,6 @@
 #include "complexmat.hpp"
 #include <cuda_runtime_api.h>
+#include "sched-util/utility_func.cuh"
 
 __inline__ __device__ float warpReduceSum(float val) {
   for (int offset = warpSize/2; offset > 0; offset /= 2)
@@ -35,8 +36,7 @@ __inline__ __device__ float blockReduceSum(float val) {
   return val;
 }
 
-__global__ void sqr_norm_kernel(const float *in, float *block_res, const size_t nofScales, const size_t totalScale, const float colsrows)
-{
+__inline__ __device__ void sqr_norm(const float *in, float *block_res, const size_t nofScales, const size_t totalScale, const float colsrows) {
     for(size_t scale = 0; scale < nofScales; scale++){
         float sum = 0.0;
         for (size_t i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -52,9 +52,38 @@ __global__ void sqr_norm_kernel(const float *in, float *block_res, const size_t 
     }
 }
 
+#ifdef PROFILE_GAUSSIAN
+__global__ void sqr_norm_kernel(const float *in, float *block_res, const size_t nofScales, const size_t totalScale, const float colsrows, uint64_t *targetTimes)
+{
+    Util::logBlockStart(targetTimes);
+    sqr_norm(in, block_res, nofScales, totalScale, colsrows);
+    Util::logBlockEnd(targetTimes);
+}
+
+void ComplexMat_::sqr_norm(DynMem &result, uint64_t *targetTimes) const
+{
+    assert(result.num_elem == n_scales);
+
+    const uint total = n_channels * rows * cols;
+    const uint totalScale = total / n_scales;
+    const dim3 threads(1024);
+    const dim3 blocks(1);
+
+    sqr_norm_kernel<<<blocks, threads, threads.x * sizeof(float)>>>((const float*)(p_data.deviceMem()), result.deviceMem(), n_scales, totalScale, cols*rows, targetTimes);
+    CudaCheckError();
+#ifndef USE_CUDA_MEMCPY
+    cudaSync();
+#endif
+}
+#endif
+
+__global__ void sqr_norm_kernel(const float *in, float *block_res, const size_t nofScales, const size_t totalScale, const float colsrows)
+{
+    sqr_norm(in, block_res, nofScales, totalScale, colsrows);
+}
+
 void ComplexMat_::sqr_norm(DynMem &result) const
 {
-
     assert(result.num_elem == n_scales);
 
     const uint total = n_channels * rows * cols;
@@ -97,8 +126,7 @@ ComplexMat_ ComplexMat_::sqr_mag() const
     return result;
 }
 
-__global__ void conj_kernel(const float *data, float *result, int total)
-{
+__inline__ __device__ void conj(const float *data, float *result, int total) {
     for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
          idx < total*2;
          idx += gridDim.x*blockDim.x){
@@ -106,6 +134,35 @@ __global__ void conj_kernel(const float *data, float *result, int total)
         result[idx] = data[idx];
         result[idx + 1] = -data[idx + 1];
     }
+}
+
+#ifdef PROFILE_GAUSSIAN
+__global__ void conj_kernel(const float *data, float *result, int total, uint64_t * targetTimes)
+{
+    Util::logBlockStart(targetTimes);
+    conj(data,result,total);
+    Util::logBlockEnd(targetTimes);
+}
+
+ComplexMat_ ComplexMat_::conj(uint64_t *targetTimes) const
+{
+    ComplexMat_ result = ComplexMat_::same_size(*this);
+
+    const uint total = n_channels * rows * cols;
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
+
+    conj_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(), (float*)result.p_data.deviceMem(), total, targetTimes);
+    CudaCheckError();
+
+    return result;
+}
+#endif
+
+__global__ void conj_kernel(const float *data, float *result, int total)
+{
+    conj(data,result,total);
 }
 
 ComplexMat_ ComplexMat_::conj() const
@@ -123,8 +180,7 @@ ComplexMat_ ComplexMat_::conj() const
     return result;
 }
 
-__global__ static void sum_channels(float *dest, const float *src, uint channels, uint num_channel_elem)
-{
+__inline__ __device__ void sum_channels(float *dest, const float *src, uint channels, uint num_channel_elem) {
     for (int idx = blockIdx.x * blockDim.x + threadIdx.x;
          idx < num_channel_elem;
          idx += gridDim.x * blockDim.x){
@@ -134,6 +190,41 @@ __global__ static void sum_channels(float *dest, const float *src, uint channels
             acc += src[idx + i * num_channel_elem];
         dest[idx] = acc;
     }
+}
+#ifdef PROFILE_GAUSSIAN
+__global__ void sum_channels_kernel(float *dest, const float *src, uint channels, uint num_channel_elem, uint64_t *targetTimes)
+{
+    Util::logBlockStart(targetTimes);
+    sum_channels(dest, src, channels, num_channel_elem);
+    Util::logBlockEnd(targetTimes);
+}
+
+ComplexMat_ ComplexMat_::sum_over_channels(uint64_t *targetTimes) const
+{
+    assert(p_data.num_elem == n_channels * rows * cols);
+
+    uint n_channels_per_scale = n_channels / n_scales;
+
+    ComplexMat_ result(this->rows, this->cols, 1, n_scales);
+
+    const uint total = rows * cols * 2;
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
+
+    for (uint scale = 0; scale < n_scales; ++scale) {
+        sum_channels_kernel<<<blocks, threads>>>(reinterpret_cast<float*>(result.p_data.deviceMem() + scale * rows * cols),
+                                          reinterpret_cast<const float*>(p_data.deviceMem() + scale * n_channels_per_scale * rows * cols),
+                                          n_channels_per_scale, total, targetTimes);
+    CudaCheckError();
+    }
+    return result;
+}
+#endif
+
+__global__ void sum_channels_kernel(float *dest, const float *src, uint channels, uint num_channel_elem)
+{
+    sum_channels(dest, src, channels, num_channel_elem);
 }
 
 ComplexMat_ ComplexMat_::sum_over_channels() const
@@ -150,21 +241,61 @@ ComplexMat_ ComplexMat_::sum_over_channels() const
     //const dim3 blocks((total + threads.x - 1) / threads.x);
 
     for (uint scale = 0; scale < n_scales; ++scale) {
-        sum_channels<<<blocks, threads>>>(reinterpret_cast<float*>(result.p_data.deviceMem() + scale * rows * cols),
+        sum_channels_kernel<<<blocks, threads>>>(reinterpret_cast<float*>(result.p_data.deviceMem() + scale * rows * cols),
                                           reinterpret_cast<const float*>(p_data.deviceMem() + scale * n_channels_per_scale * rows * cols),
                                           n_channels_per_scale, total);
+    CudaCheckError();
     }
     return result;
 }
 
-__global__ void same_num_channels_mul_kernel(const float *data_l, const float *data_r, float *result, int total)
-{
+
+__inline__ __device__ void same_num_channels_mul(const float *data_l, const float *data_r, float *result, int total) {
     for (int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
          idx < total*2;
          idx += gridDim.x*blockDim.x){
         result[idx] = data_l[idx] * data_r[idx] - data_l[idx + 1] * data_r[idx + 1];
         result[idx + 1] = data_l[idx] * data_r[idx + 1] + data_l[idx + 1] * data_r[idx];
     }
+}
+
+#ifdef PROFILE_GAUSSIAN
+__global__ void same_num_channels_mul_kernel(const float *data_l, const float *data_r, float *result, int total, uint64_t *targetTimes)
+{
+    Util::logBlockStart(targetTimes);
+    same_num_channels_mul(data_l, data_r, result, total);
+    Util::logBlockEnd(targetTimes);
+}
+
+ComplexMat_ ComplexMat_::mulProf(const ComplexMat_ &rhs, uint64_t *targetTimes) const
+{
+    assert(n_channels == n_scales * rhs.n_channels && rhs.cols == cols && rhs.rows == rows);
+
+    ComplexMat_ result = ComplexMat_::same_size(*this);
+
+    const uint total = n_channels / n_scales * rows * cols;
+    const dim3 threads(512);
+    const dim3 blocks(2);
+    //const dim3 blocks((total + threads.x - 1) / threads.x);
+
+    for (uint s = 0; s < n_scales; ++s) {
+        same_num_channels_mul_kernel<<<blocks, threads, 0>>>((float*)(this->p_data.deviceMem() + s * total),
+                                                             (float*)rhs.p_data.deviceMem(),
+                                                             (float*)(result.p_data.deviceMem() + s * total),
+                                                             total, targetTimes);
+        CudaCheckError();
+    }
+
+#ifndef USE_CUDA_MEMCPY
+    cudaSync();
+#endif
+    return result;
+}
+#endif
+
+__global__ void same_num_channels_mul_kernel(const float *data_l, const float *data_r, float *result, int total)
+{
+    same_num_channels_mul(data_l, data_r, result, total);
 }
 
 // element-wise per channel multiplication, division and addition
