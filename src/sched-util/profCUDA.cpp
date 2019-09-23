@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#ifdef OPENMP
+#include <omp.h>
+#endif
 #include "profCUDA.hpp"
 #include "cuda_error_check.hpp"
 #include "utility_host.hpp"
@@ -19,10 +22,19 @@ ProfCUDA::~ProfCUDA(){
     CudaSafeCall(cudaFree(this->d_targetTimes));
 }
 
-void ProfCUDA::init(){
+void ProfCUDA::init(int ctxId){
     // Memset to 0 jsut to be sure
     memset(this->hostData.h_targetTimes, 0, sizeof(this->hostData.h_targetTimes));
     this->copyToDev();
+    this->ctxId = ctxId;
+}
+
+void ProfCUDA::setThreadId(void){
+#ifdef OPENMP
+    this->thread_id = omp_get_thread_num();
+#else
+    this->thread_id = 0;
+#endif
 }
 
 uint64_t *ProfCUDA::getDevicePointer(Kernel ker){
@@ -52,14 +64,16 @@ void ProfCUDA::printData(std::string fileName){
     file << "{\n";
     file << "\"nof_blocks\": " << this->nofBlocks << ", \n";
     file << "\"times_per_block\": " << this->timesPerBlock << ", \n";
-    file << "\"kernel_names\":[ ";
+    file << "\"kernel_names\": [ ";
     for(uint ker = KER_XF_SQR_NORM ; ker < KER_NOF ; ++ker){
         if(ker > 0)
-            file << ",";
-            file << this->kernel_str[ker];
+            file << ", ";
+            file << "\"" << this->kernel_str[ker] << "\"";
     }
     file << "],\n";
-    file << "\"frame\":[\n";
+    file << "\"thread_id\": " << this->thread_id << ", \n";
+    file << "\"ctx_id\": " << this->ctxId << ", \n";
+    file << "\"frame\": [\n";
 
     // Iterate throught profData and print it out
     bool first = true;
@@ -85,11 +99,11 @@ void ProfCUDA::printData(std::string fileName){
                     file << ", ";
                 file << data[i];
             }
-            file << "]\n";
+            file << "]";
         }
 
         // Close frame object
-        file << "}";
+        file << "\n}";
     }
 
     // Close frame list

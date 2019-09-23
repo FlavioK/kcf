@@ -215,7 +215,7 @@ void KCF_Tracker::init(cv::Mat &img, const cv::Rect &bbox, int fit_size_x, int f
             d->threadctxs.emplace_back(feature_size, (int)p_num_of_feats, scale, angle);
             d->threadctxs.back().fft.init(feature_size.width, feature_size.height, p_num_of_feats, p_num_scales * p_num_angles);
 #ifdef PROFILE_GAUSSIAN
-            d->threadctxs.back().profData.init();
+            d->threadctxs.back().profData.init(d->threadctxs.size()-1);
 #endif
         }
     }
@@ -431,6 +431,7 @@ void KCF_Tracker::track(cv::Mat &img)
 #else  // !ASYNC
     NORMAL_OMP_PARALLEL_FOR
     for (uint i = 0; i < d->threadctxs.size(); ++i){
+        d->threadctxs[i].profData.setThreadId();
         d->threadctxs[i].track(*this, input_rgb, input_gray);
     }
 #endif

@@ -7,6 +7,9 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 class ProfCUDA
 {
@@ -33,7 +36,8 @@ public:
 
     ProfCUDA();
     ~ProfCUDA();
-    void init(void);
+    void init(int ctxId);
+    void setThreadId(void);
     uint64_t * getDevicePointer(Kernel ker);
     void logHostStart(void);
     void logHostEnd(void);
@@ -44,6 +48,8 @@ private:
     static const uint nofBlocks = 2;     // Generally allocate space for two blocks per kernel
     static const uint timesPerBlock = 2; // Start and end timestamp
     static const uint numElem = nofBlocks * KER_NOF * timesPerBlock;
+    int thread_id;
+    int ctxId;
 
     // Indicates the current kcf frame number
     struct frameData{

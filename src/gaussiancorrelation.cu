@@ -35,7 +35,6 @@ void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const Comp
                                                   double sigma, bool auto_correlation, ThreadCtx &ctx)
 {
     TRACE("");
-    // TODO: retrive starttime from GPU
     if(!auto_correlation){
         pthread_barrier_wait(&ctx.barrier);
 #ifdef PROFILE_GAUSSIAN
