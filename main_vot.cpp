@@ -133,6 +133,12 @@ int main(int argc, char *argv[])
     bool set_box_interactively = false;
     bool do_track = true;
 
+    tracker.pwd = getcwd(NULL, 0);
+    if(tracker.pwd == NULL){
+        perror("Could not retrieve current working dir");
+        exit(1);
+    }
+
     while (1) {
         int option_index = 0;
         static struct option long_options[] = {

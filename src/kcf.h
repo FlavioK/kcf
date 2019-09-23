@@ -54,6 +54,7 @@ public:
     constexpr static bool m_use_cnfeat {true};
     constexpr static bool m_use_linearkernel {false};
     const int p_cell_size = 4;            //4 for hog (= bin_size)
+    char * pwd;
 
     /*
     padding             ... extra area surrounding the target           (1.5)

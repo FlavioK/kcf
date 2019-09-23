@@ -71,10 +71,11 @@ KCF_Tracker::~KCF_Tracker() {
 #ifdef PROFILE_GAUSSIAN
     for (uint i = 0; i < d->threadctxs.size(); ++i){
         std::ostringstream fileName;
-        fileName << "threadCtx_" << i << ".log";
+        fileName << this->pwd << "/threadCtx_" << i << ".log";
         d->threadctxs[i].profData.printData(fileName.str());
     }
 #endif
+    free(this->pwd);
 }
 
 void KCF_Tracker::train(cv::Mat input_rgb, cv::Mat input_gray, double interp_factor)
