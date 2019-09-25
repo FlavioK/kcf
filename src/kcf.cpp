@@ -223,6 +223,10 @@ void KCF_Tracker::init(cv::Mat &img, const cv::Rect &bbox, int fit_size_x, int f
     d->threadctxs.emplace_back(feature_size, (int)p_num_of_feats, p_scales, p_angles);
     d->threadctxs[0].fft.init(feature_size.width, feature_size.height, p_num_of_feats, p_num_scales * p_num_angles);
 #endif
+#ifdef PROFILE_GAUSSIAN
+    // CPU-GPU offset and scale
+    ProfCUDA::syncCpuGpuTimer();
+#endif
 
     // Initialize pthread barrier
     if(ThreadCtx::initBarrier() < 0) exit(0);
@@ -431,7 +435,6 @@ void KCF_Tracker::track(cv::Mat &img)
 #else  // !ASYNC
     NORMAL_OMP_PARALLEL_FOR
     for (uint i = 0; i < d->threadctxs.size(); ++i){
-        d->threadctxs[i].profData.setThreadId();
         d->threadctxs[i].track(*this, input_rgb, input_gray);
     }
 #endif

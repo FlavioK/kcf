@@ -38,18 +38,23 @@ public:
     ~ProfCUDA();
     void init(int ctxId);
     void setThreadId(void);
-    uint64_t * getDevicePointer(Kernel ker);
+    uint64_t * getProfDevicePointer(Kernel ker);
     void logHostStart(void);
     void logHostEnd(void);
     void storeFrameData(void);
     void printData(std::string fileName);
+    static void syncCpuGpuTimer(void);
 
 private:
+    // Profiling stuff
     static const uint nofBlocks = 2;     // Generally allocate space for two blocks per kernel
     static const uint timesPerBlock = 2; // Start and end timestamp
     static const uint numElem = nofBlocks * KER_NOF * timesPerBlock;
     int thread_id;
     int ctxId;
+    static uint64_t startingCpuClock;
+    static uint64_t startingGpuClock;
+    static double gpuCpuScale;
 
     // Indicates the current kcf frame number
     struct frameData{
@@ -61,7 +66,7 @@ private:
     std::vector<frameData> profData;
     frameData hostData;
     uint64_t *d_targetTimes;
-
+    uint64_t convertGpuToCpu(uint64_t gpuTime);
     void copyToHost();
     void copyToDev();
 };

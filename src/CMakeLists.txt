@@ -45,7 +45,7 @@ ENDIF()
 
 IF(PROFILE_GAUSSIAN)
   add_definitions(-DPROFILE_GAUSSIAN )
-  list(APPEND KCF_LIB_SRC sched-util/utility_func.cu sched-util/utility_func.cuh sched-util/utility_host.hpp sched-util/utility_host.cpp sched-util/profCUDA.cpp sched-util/profCUDA.hpp)
+  list(APPEND KCF_LIB_SRC sched-util/utility_func.cu sched-util/utility_func.cuh sched-util/utility_host.hpp sched-util/profCUDA.cpp sched-util/profCUDA.hpp)
   MESSAGE(STATUS "Profiling of GaussianCorrelation enabled")
 ENDIF()
 

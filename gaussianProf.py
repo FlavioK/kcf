@@ -140,9 +140,14 @@ class Scale:
         return self._host_end
 
     def draw(self, start_offset, stream, kernel_height, ax, colors, hatches, time_scaling):
+        # CPU start
+        ax.arrow((self._host_start - start_offset) * time_scaling, stream, 0, 0.7*kernel_height, width=0.02, color='r',alpha=0.4)
+        ax.arrow((self._host_start - start_offset) * time_scaling, stream, 0, 0.7*kernel_height, color='k')
+        # CPU end
+        ax.arrow((self._host_end - start_offset) * time_scaling, stream + 0.7*kernel_height, 0, -0.6*kernel_height, width=0.02, color='b', alpha=0.4)
+        ax.arrow((self._host_end - start_offset) * time_scaling, stream + 0.7*kernel_height, 0, -0.6*kernel_height, color='k')
         for kernel_id, kernel in enumerate(self._kernels):
             kernel.draw(start_offset, stream, kernel_height, ax, colors[kernel_id], hatches[kernel_id], time_scaling)
-            # TODO: draw arrows of CPU start and end
 
 
 class Frame:
@@ -207,8 +212,8 @@ class Frame:
         minStart = sys.float_info.max
         for thread_id in range(self._n_cpu_threads):
             for scale_id in scale_ids:
-                if self._scales[thread_id][scale_id].startGPU < minStart:
-                    minStart = self._scales[thread_id][scale_id].startGPU
+                if self._scales[thread_id][scale_id].startCPU < minStart:
+                    minStart = self._scales[thread_id][scale_id].startCPU
         return minStart
 
     def draw(self, frame_id, scale_ids=[]):
@@ -288,9 +293,10 @@ class Scenario:
 
     def parseData(self, ctx):
         if not self._frames:
-            self._frames = [Frame() for frame in ctx['frame']]
+            # Skip first frame since we have some allocations and warm up iterations here
+            self._frames = [Frame() for frame in ctx['frame'][1:]]
             self._n_frames = len(self._frames)
-        if not len(self._frames) == len(ctx['frame']):
+        if not len(self._frames) == len(ctx['frame'][1:]):
             sys.exit("All threadCtx must have the same number of frames")
 
         kernel_names = ctx['kernel_names']
@@ -301,20 +307,19 @@ class Scenario:
 
         n_blocks = int(ctx['nof_blocks'])
         if n_blocks < 1:
-            sys.exit("We must have at leas one block in a kernel")
+            sys.exit("We must have at least one block in a kernel")
 
         thread_id = 0
         if 'thread_id' in ctx:
             thread_id = int(ctx['thread_id'])
 
         ctx_id = int(ctx['ctx_id'])
-
-        for frame_id, frame in enumerate(ctx['frame']):
+        for frame_id, frame in enumerate(ctx['frame'][1:]):
             scale_data = {}
             scale_data['times_per_block'] = times_per_block
             scale_data['n_blocks'] = n_blocks
-            scale_data['host_start'] = int(frame['host_start'])
-            scale_data['host_end'] = int(frame['host_end'])
+            scale_data['host_start'] = float(frame['host_start'])
+            scale_data['host_end'] = float(frame['host_end'])
             scale_data['kernel_names'] = kernel_names
             scale_data['ctx_id'] = ctx_id
             for kernel in kernel_names:

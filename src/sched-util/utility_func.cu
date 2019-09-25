@@ -17,33 +17,31 @@ static inline int InternalCheckCUDAError(cudaError_t result, const char *fn,
     return -1;
 }
 
-static __global__ void getTimeInternal(uint64_t *targetTime, uint64_t startTimeOffsetNs) {
+static __global__ void getTimeInternal(uint64_t *targetTime) {
     if(threadIdx.x == 0){
-        *targetTime = Util::getTimeGPU() + startTimeOffsetNs;
+        *targetTime = Util::getTimeGPU();
     }
-    __syncthreads();
 }
 
-void Util::getStartTimeGPU(uint64_t *d_targetStartTime, uint64_t startTimeOffsetNs){
-        getTimeInternal<<<1,1>>>(d_targetStartTime, startTimeOffsetNs);
+void Util::getTimeGPU(uint64_t *d_targetStartTime){
+        getTimeInternal<<<1,1>>>(d_targetStartTime);
 
         if (CheckCUDAError(cudaDeviceSynchronize())) perror("Could not synchronize device\n");
 }
 
-
-int Util::getHostDeviceTimeOffset(int deviceId, uint64_t *device_ns, double *host_ns){
+int Util::getHostDeviceTimeOffset(uint64_t *device_ns, uint64_t *host_ns){
     uint64_t *time_d;
 
-    if (CheckCUDAError(cudaSetDevice(deviceId))) return -1;
     if (CheckCUDAError(cudaMalloc((void**)&time_d, sizeof(*time_d)))) return -1;
 
     // Warm-up
-    getTimeInternal<<<1,1>>>(time_d, 0.0);
+    getTimeInternal<<<1,1>>>(time_d);
     if (CheckCUDAError(cudaDeviceSynchronize())) return -1;
 
     // Do Measurement
-    getTimeInternal<<<1,1>>>(time_d, 0.0);
+    getTimeInternal<<<1,1>>>(time_d);
     *host_ns = Util::getCpuTimeNs();
+    if (CheckCUDAError(cudaDeviceSynchronize())) return -1;
     if (CheckCUDAError(cudaMemcpy(device_ns, time_d, sizeof(*device_ns), cudaMemcpyDeviceToHost))) {
         cudaFree(time_d);
         return -1;
@@ -52,7 +50,7 @@ int Util::getHostDeviceTimeOffset(int deviceId, uint64_t *device_ns, double *hos
     return 0;
 }
 
-#define SPIN_DURATION (1000000000)
+#define SPIN_DURATION_NS (10000000000.f)
 
 __global__ void spinKernel(uint64_t spin_duration) {
     uint64_t start_time = Util::getTimeGPU();
@@ -61,17 +59,15 @@ __global__ void spinKernel(uint64_t spin_duration) {
     }
 }
 
-int Util::getGpuTimeScale(int deviceId, double* scale){
-    double cpuStart, cpuStop;
-    if (CheckCUDAError(cudaSetDevice(deviceId))) return -1;
-
+int Util::getGpuTimeScale(double* scale){
+    uint64_t cpuStart, cpuStop;
     // Warm-up
     spinKernel<<<1,1>>>(1000);
     if (CheckCUDAError(cudaDeviceSynchronize())) return -1;
     cpuStart = Util::getCpuTimeNs();
-    spinKernel<<<1, 1>>>(SPIN_DURATION);
-    if (CheckCUDAError(cudaDeviceSynchronize())) return -1;
+    spinKernel<<<1, 1>>>(SPIN_DURATION_NS);
+    if (CheckCUDAError(cudaStreamSynchronize(cudaStreamPerThread))) return -1;
     cpuStop = Util::getCpuTimeNs();
-    *scale = (double)(cpuStop-cpuStart)/(double)SPIN_DURATION;
+    *scale = (cpuStop-cpuStart)/SPIN_DURATION_NS;
     return 0;
 }

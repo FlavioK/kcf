@@ -12,6 +12,10 @@
 #include "cuda_error_check.hpp"
 #include "utility_host.hpp"
 
+uint64_t ProfCUDA::startingCpuClock = 0;
+uint64_t ProfCUDA::startingGpuClock = 0;
+double ProfCUDA::gpuCpuScale = 0;
+
 ProfCUDA::ProfCUDA(){
     // Init CUDA data
     CudaSafeCall(cudaMalloc(&this->d_targetTimes, sizeof(this->hostData.h_targetTimes)));
@@ -37,7 +41,7 @@ void ProfCUDA::setThreadId(void){
 #endif
 }
 
-uint64_t *ProfCUDA::getDevicePointer(Kernel ker){
+uint64_t *ProfCUDA::getProfDevicePointer(Kernel ker){
     return &this->d_targetTimes[ker * this->nofBlocks * this->timesPerBlock];
 }
 
@@ -53,6 +57,8 @@ void ProfCUDA::storeFrameData(){
     this->copyToHost();
     //Store current frame data to profData
     this->profData.push_back(this->hostData);
+    // Safe thread id
+    this->setThreadId();
 }
 
 void ProfCUDA::printData(std::string fileName){
@@ -62,6 +68,9 @@ void ProfCUDA::printData(std::string fileName){
 
     // Write json header
     file << "{\n";
+    //file << "\"gpu_cpu_scale\": " << ProfCUDA::gpuCpuScale << ", \n";
+    file << "\"cpu_start_ns\": " << ProfCUDA::startingCpuClock << ", \n";
+    file << "\"gpu_start_ns\": " << ProfCUDA::startingGpuClock << ", \n";
     file << "\"nof_blocks\": " << this->nofBlocks << ", \n";
     file << "\"times_per_block\": " << this->timesPerBlock << ", \n";
     file << "\"kernel_names\": [ ";
@@ -85,8 +94,8 @@ void ProfCUDA::printData(std::string fileName){
         first = false;
 
         // Print host times
-        file << "\"host_start\": " << frame.hostStart << ", \n";
-        file << "\"host_end\": " << frame.hostEnd << ", \n";
+        file << "\"host_start\": " << frame.hostStart - ProfCUDA::startingCpuClock << ", \n";
+        file << "\"host_end\": " << frame.hostEnd  - ProfCUDA::startingCpuClock << ", \n";
 
         // Print target kerneltimes
         for(uint ker = KER_XF_SQR_NORM ; ker < KER_NOF ; ++ker){
@@ -97,7 +106,7 @@ void ProfCUDA::printData(std::string fileName){
             for(uint i = 0; i < this->nofBlocks * this->timesPerBlock ; ++i){
                 if(i > 0)
                     file << ", ";
-                file << data[i];
+                file << this->convertGpuToCpu(data[i]);
             }
             file << "]";
         }
@@ -112,6 +121,19 @@ void ProfCUDA::printData(std::string fileName){
     // Close json file
     file << "}\n";
     file.close();
+}
+
+void ProfCUDA::syncCpuGpuTimer(void){
+    std::cout << "Retrieving GPU-CPU timer offset" << std::endl;
+    (void)Util::getHostDeviceTimeOffset(&ProfCUDA::startingGpuClock, &ProfCUDA::startingCpuClock);
+    //std::cout << "Retrieving GPU-CPU timer scale (takes 1s)" << std::endl;
+    //(void)Util::getGpuTimeScale(&ProfCUDA::gpuCpuScale);
+    std::cout << "End CPU-GPU sync" << std::endl;
+}
+
+uint64_t ProfCUDA::convertGpuToCpu(uint64_t gpuTime){
+        if(gpuTime == 0) return 0;
+        return (gpuTime-ProfCUDA::startingGpuClock);// * ProfCUDA::gpuCpuScale;
 }
 
 void ProfCUDA::copyToDev(){
