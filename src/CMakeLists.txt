@@ -39,8 +39,8 @@ IF( NOT (FFT STREQUAL "cuFFT") AND PROFILE_GAUSSIAN)
   message(SEND_ERROR "Gaussian correlation can only be profiled if cuFFT is enabled")
 ENDIF()
 
-IF( NOT (FFT STREQUAL "cuFFT") AND USE_KERNEL_SCHED)
-  message(SEND_ERROR "Gaussian correlation can only be scheduled if cuFFT is enabled")
+IF( !PROFILE_GAUSSIAN AND USE_KERNEL_SCHED)
+    message(SEND_ERROR "Gaussian correlation can only be scheduled if PROFILE_GAUSSIAN is enabled")
 ENDIF()
 
 IF(PROFILE_GAUSSIAN)

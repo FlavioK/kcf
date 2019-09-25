@@ -16,6 +16,10 @@ uint64_t ProfCUDA::startingCpuClock = 0;
 uint64_t ProfCUDA::startingGpuClock = 0;
 double ProfCUDA::gpuCpuScale = 0;
 
+#ifdef USE_KERNEL_SCHED
+uint64_t* ProfCUDA::d_targetStartTime = NULL;
+#endif
+
 ProfCUDA::ProfCUDA(){
     // Init CUDA data
     CudaSafeCall(cudaMalloc(&this->d_targetTimes, sizeof(this->hostData.h_targetTimes)));
@@ -27,11 +31,33 @@ ProfCUDA::~ProfCUDA(){
 }
 
 void ProfCUDA::init(int ctxId){
-    // Memset to 0 jsut to be sure
+    // Memset to 0 just to be sure
     memset(this->hostData.h_targetTimes, 0, sizeof(this->hostData.h_targetTimes));
     this->copyToDev();
     this->ctxId = ctxId;
+#ifdef USE_KERNEL_SCHED
+    if(ProfCUDA::d_targetStartTime == NULL){
+        CudaSafeCall(cudaMalloc(&ProfCUDA::d_targetStartTime, sizeof(*ProfCUDA::d_targetStartTime)));
+    }
+    // Apply stream offset
+    for(uint i = 0; i < KER_NOF*nofBlocks; i++){
+        this->h_targetOffsets[i]+=this->streamOffset*(ctxId/5); // 5 is how many element are per thread
+    }
+    CudaSafeCall(cudaMalloc(&this->d_targetOffsets, sizeof(this->h_targetOffsets)));
+    CudaSafeCall(cudaMemcpyAsync(this->d_targetOffsets, this->h_targetOffsets, sizeof(this->h_targetOffsets), cudaMemcpyHostToDevice, cudaStreamPerThread));
+    CudaSafeCall(cudaStreamSynchronize(cudaStreamPerThread));
+#endif
 }
+
+#ifdef USE_KERNEL_SCHED
+void ProfCUDA::getStartTime(void){
+    Util::getTimeGPU(ProfCUDA::d_targetStartTime);
+}
+
+uint64_t *ProfCUDA::getSchedDevicePointer(Kernel ker){
+    return &this->d_targetOffsets[ker * this->nofBlocks];
+}
+#endif
 
 void ProfCUDA::setThreadId(void){
 #ifdef OPENMP

@@ -11,6 +11,12 @@
 #include <omp.h>
 #endif
 
+
+#ifdef USE_KERNEL_SCHED
+#define SCHED_PARAMS(param) , param
+#else
+#define SCHED_PARAMS(param)
+#endif
 class ProfCUDA
 {
 public:
@@ -44,6 +50,11 @@ public:
     void storeFrameData(void);
     void printData(std::string fileName);
     static void syncCpuGpuTimer(void);
+#ifdef USE_KERNEL_SCHED
+    static void getStartTime(void);
+    static uint64_t* d_targetStartTime;
+    uint64_t * getSchedDevicePointer(Kernel ker);
+#endif
 
 private:
     // Profiling stuff
@@ -55,6 +66,17 @@ private:
     static uint64_t startingCpuClock;
     static uint64_t startingGpuClock;
     static double gpuCpuScale;
+#ifdef USE_KERNEL_SCHED
+    uint64_t *d_targetOffsets;
+    //                                             Block 0, Block 1
+    uint64_t h_targetOffsets[KER_NOF*nofBlocks] = {1000000,       0, // KER_XF_SQR_NORM
+                                                   1200000,       0, // KER_YF_SQR_NORM
+                                                   1500000,       1600000, // KER_YF_CONJ,
+                                                   2700000,       3500000, // KER_XF_MUL,
+                                                   4650000,       4700000, // KER_XYF_SUM,
+                                                   4900000,       4950000}; // KER_CORR,
+   static const uint64_t streamOffset = 90000;
+#endif
 
     // Indicates the current kcf frame number
     struct frameData{

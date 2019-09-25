@@ -208,13 +208,16 @@ class Frame:
                 print(" {:3d}".format(scale.ctx_id), end = '')
             print("")
 
-    def getScaleStart(self, scale_ids):
+    def getScaleBorders(self, scale_ids):
         minStart = sys.float_info.max
+        maxEnd = 0
         for thread_id in range(self._n_cpu_threads):
             for scale_id in scale_ids:
                 if self._scales[thread_id][scale_id].startCPU < minStart:
                     minStart = self._scales[thread_id][scale_id].startCPU
-        return minStart
+                if self._scales[thread_id][scale_id].endCPU > maxEnd:
+                    maxEnd = self._scales[thread_id][scale_id].endCPU
+        return minStart, maxEnd
 
     def draw(self, frame_id, scale_ids=[]):
         if not scale_ids:
@@ -232,7 +235,7 @@ class Frame:
         ax = fig.add_subplot(1,1,1)
         labels = []
         
-        start_offset = self.getScaleStart(scale_ids)
+        start_offset, scale_end = self.getScaleBorders(scale_ids)
         # Plotting
         for thread_id in range(self._n_cpu_threads):
             labels.append("Thread "+str(thread_id))
@@ -244,6 +247,7 @@ class Frame:
         ax.set_ylim((0, self._n_cpu_threads))
         ax.set_yticklabels(labels)
         ax.set_xlabel("Time [ms]")
+        ax.set_xlim((0, (scale_end-start_offset)*1e-6))
         ax.grid(True)
         return fig
 

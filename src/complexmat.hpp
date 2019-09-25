@@ -58,20 +58,20 @@ class ComplexMat_ {
 
     T sqr_norm() const;
 #ifdef PROFILE_GAUSSIAN
-    void sqr_norm(DynMem_<T> &result, uint64_t *targetTimes) const;
+    void sqr_norm(DynMem_<T> &result, uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets) const;
 #endif
     void sqr_norm(DynMem_<T> &result) const;
 
     ComplexMat_ sqr_mag() const;
 
 #ifdef PROFILE_GAUSSIAN
-    ComplexMat_ conj(uint64_t *targetTimes) const;
+    ComplexMat_ conj(uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets) const;
 #endif
     ComplexMat_ conj() const;
 
 
 #ifdef PROFILE_GAUSSIAN
-    ComplexMat_ sum_over_channels(uint64_t *targetTimes) const;
+    ComplexMat_ sum_over_channels(uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets) const;
 #endif
     ComplexMat_ sum_over_channels() const;
 
@@ -109,7 +109,7 @@ class ComplexMat_ {
 
     // element-wise per channel multiplication, division and addition
 #ifdef PROFILE_GAUSSIAN
-    ComplexMat_ mulProf(const ComplexMat_ &rhs, uint64_t *targetTimes) const;
+    ComplexMat_ mulProf(const ComplexMat_ &rhs, uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets) const;
 #endif
     ComplexMat_ operator*(const ComplexMat_ &rhs) const;
     ComplexMat_ operator/(const ComplexMat_ &rhs) const;

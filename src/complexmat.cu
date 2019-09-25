@@ -53,14 +53,25 @@ __inline__ __device__ void sqr_norm(const float *in, float *block_res, const siz
 }
 
 #ifdef PROFILE_GAUSSIAN
-__global__ void sqr_norm_kernel(const float *in, float *block_res, const size_t nofScales, const size_t totalScale, const float colsrows, uint64_t *targetTimes)
+__global__ void sqr_norm_kernel(const float *in,
+                                float *block_res,
+                                const size_t nofScales,
+                                const size_t totalScale,
+                                const float colsrows,
+                                uint64_t *targetTimes,
+                                uint64_t *startTime,
+                                uint64_t *offsets)
 {
+#ifdef USE_KERNEL_SCHED
+    Util::logBlockStart(targetTimes, startTime, offsets);
+#else
     Util::logBlockStart(targetTimes);
+#endif
     sqr_norm(in, block_res, nofScales, totalScale, colsrows);
     Util::logBlockEnd(targetTimes);
 }
 
-void ComplexMat_::sqr_norm(DynMem &result, uint64_t *targetTimes) const
+void ComplexMat_::sqr_norm(DynMem &result, uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets) const
 {
     assert(result.num_elem == n_scales);
 
@@ -69,7 +80,14 @@ void ComplexMat_::sqr_norm(DynMem &result, uint64_t *targetTimes) const
     const dim3 threads(1024);
     const dim3 blocks(1);
 
-    sqr_norm_kernel<<<blocks, threads, threads.x * sizeof(float)>>>((const float*)(p_data.deviceMem()), result.deviceMem(), n_scales, totalScale, cols*rows, targetTimes);
+    sqr_norm_kernel<<<blocks, threads, threads.x * sizeof(float)>>>((const float*)(p_data.deviceMem()),
+                                                                    result.deviceMem(),
+                                                                    n_scales,
+                                                                    totalScale,
+                                                                    cols*rows,
+                                                                    targetTimes,
+                                                                    startTime,
+                                                                    offsets);
     CudaCheckError();
 #ifndef USE_CUDA_MEMCPY
     cudaSync();
@@ -137,14 +155,18 @@ __inline__ __device__ void conj(const float *data, float *result, int total) {
 }
 
 #ifdef PROFILE_GAUSSIAN
-__global__ void conj_kernel(const float *data, float *result, int total, uint64_t * targetTimes)
+__global__ void conj_kernel(const float *data, float *result, int total, uint64_t * targetTimes, uint64_t *startTime, uint64_t *offsets)
 {
+#ifdef USE_KERNEL_SCHED
+    Util::logBlockStart(targetTimes, startTime, offsets);
+#else
     Util::logBlockStart(targetTimes);
+#endif
     conj(data,result,total);
     Util::logBlockEnd(targetTimes);
 }
 
-ComplexMat_ ComplexMat_::conj(uint64_t *targetTimes) const
+ComplexMat_ ComplexMat_::conj(uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets) const
 {
     ComplexMat_ result = ComplexMat_::same_size(*this);
 
@@ -153,7 +175,7 @@ ComplexMat_ ComplexMat_::conj(uint64_t *targetTimes) const
     const dim3 blocks(2);
     //const dim3 blocks((total + threads.x - 1) / threads.x);
 
-    conj_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(), (float*)result.p_data.deviceMem(), total, targetTimes);
+    conj_kernel<<<blocks, threads, 0>>>((float*)this->p_data.deviceMem(), (float*)result.p_data.deviceMem(), total, targetTimes, startTime, offsets);
     CudaCheckError();
 
     return result;
@@ -192,14 +214,18 @@ __inline__ __device__ void sum_channels(float *dest, const float *src, uint chan
     }
 }
 #ifdef PROFILE_GAUSSIAN
-__global__ void sum_channels_kernel(float *dest, const float *src, uint channels, uint num_channel_elem, uint64_t *targetTimes)
+__global__ void sum_channels_kernel(float *dest, const float *src, uint channels, uint num_channel_elem, uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets)
 {
+#ifdef USE_KERNEL_SCHED
+    Util::logBlockStart(targetTimes, startTime, offsets);
+#else
     Util::logBlockStart(targetTimes);
+#endif
     sum_channels(dest, src, channels, num_channel_elem);
     Util::logBlockEnd(targetTimes);
 }
 
-ComplexMat_ ComplexMat_::sum_over_channels(uint64_t *targetTimes) const
+ComplexMat_ ComplexMat_::sum_over_channels(uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets) const
 {
     assert(p_data.num_elem == n_channels * rows * cols);
 
@@ -215,7 +241,7 @@ ComplexMat_ ComplexMat_::sum_over_channels(uint64_t *targetTimes) const
     for (uint scale = 0; scale < n_scales; ++scale) {
         sum_channels_kernel<<<blocks, threads>>>(reinterpret_cast<float*>(result.p_data.deviceMem() + scale * rows * cols),
                                           reinterpret_cast<const float*>(p_data.deviceMem() + scale * n_channels_per_scale * rows * cols),
-                                          n_channels_per_scale, total, targetTimes);
+                                          n_channels_per_scale, total, targetTimes, startTime, offsets);
     CudaCheckError();
     }
     return result;
@@ -260,14 +286,18 @@ __inline__ __device__ void same_num_channels_mul(const float *data_l, const floa
 }
 
 #ifdef PROFILE_GAUSSIAN
-__global__ void same_num_channels_mul_kernel(const float *data_l, const float *data_r, float *result, int total, uint64_t *targetTimes)
+__global__ void same_num_channels_mul_kernel(const float *data_l, const float *data_r, float *result, int total, uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets)
 {
+#ifdef USE_KERNEL_SCHED
+    Util::logBlockStart(targetTimes, startTime, offsets);
+#else
     Util::logBlockStart(targetTimes);
+#endif
     same_num_channels_mul(data_l, data_r, result, total);
     Util::logBlockEnd(targetTimes);
 }
 
-ComplexMat_ ComplexMat_::mulProf(const ComplexMat_ &rhs, uint64_t *targetTimes) const
+ComplexMat_ ComplexMat_::mulProf(const ComplexMat_ &rhs, uint64_t *targetTimes, uint64_t *startTime, uint64_t *offsets) const
 {
     assert(n_channels == n_scales * rhs.n_channels && rhs.cols == cols && rhs.rows == rows);
 
@@ -282,7 +312,7 @@ ComplexMat_ ComplexMat_::mulProf(const ComplexMat_ &rhs, uint64_t *targetTimes) 
         same_num_channels_mul_kernel<<<blocks, threads, 0>>>((float*)(this->p_data.deviceMem() + s * total),
                                                              (float*)rhs.p_data.deviceMem(),
                                                              (float*)(result.p_data.deviceMem() + s * total),
-                                                             total, targetTimes);
+                                                             total, targetTimes, startTime, offsets);
         CudaCheckError();
     }
 
