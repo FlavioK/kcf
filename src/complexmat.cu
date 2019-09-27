@@ -2,6 +2,9 @@
 #include <cuda_runtime_api.h>
 #include "sched-util/utility_func.cuh"
 
+
+
+// https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
 __inline__ __device__ float warpReduceSum(float val) {
   for (int offset = warpSize/2; offset > 0; offset /= 2)
 #ifndef CUDART_VERSION

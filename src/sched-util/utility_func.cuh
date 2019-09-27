@@ -51,7 +51,6 @@ namespace Util {
 #endif
 
     __device__ __inline__ void logBlockStart(uint64_t *targetTimes){
-        // TODO: Use spinUntil to spin until this block is allowed to start processing
         uint64_t start_time = Util::getTimeGPU();
         if(threadIdx.x == 0){
             targetTimes[blockIdx.x*2] = start_time;

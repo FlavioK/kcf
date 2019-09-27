@@ -152,8 +152,8 @@ void ProfCUDA::printData(std::string fileName){
 void ProfCUDA::syncCpuGpuTimer(void){
     std::cout << "Retrieving GPU-CPU timer offset" << std::endl;
     (void)Util::getHostDeviceTimeOffset(&ProfCUDA::startingGpuClock, &ProfCUDA::startingCpuClock);
-    //std::cout << "Retrieving GPU-CPU timer scale (takes 1s)" << std::endl;
-    //(void)Util::getGpuTimeScale(&ProfCUDA::gpuCpuScale);
+    std::cout << "Retrieving GPU-CPU timer scale (takes 1s)" << std::endl;
+    (void)Util::getGpuTimeScale(&ProfCUDA::gpuCpuScale);
     std::cout << "End CPU-GPU sync" << std::endl;
 }
 

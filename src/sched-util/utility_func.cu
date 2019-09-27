@@ -50,7 +50,7 @@ int Util::getHostDeviceTimeOffset(uint64_t *device_ns, uint64_t *host_ns){
     return 0;
 }
 
-#define SPIN_DURATION_NS (10000000000.f)
+#define SPIN_DURATION_NS (1000000000.f)
 
 __global__ void spinKernel(uint64_t spin_duration) {
     uint64_t start_time = Util::getTimeGPU();

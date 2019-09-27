@@ -68,14 +68,18 @@ private:
     static double gpuCpuScale;
 #ifdef USE_KERNEL_SCHED
     uint64_t *d_targetOffsets;
-    //                                             Block 0, Block 1
-    uint64_t h_targetOffsets[KER_NOF*nofBlocks] = {1000000,       0, // KER_XF_SQR_NORM
-                                                   1200000,       0, // KER_YF_SQR_NORM
-                                                   1500000,       1600000, // KER_YF_CONJ,
-                                                   2700000,       3500000, // KER_XF_MUL,
-                                                   4650000,       4700000, // KER_XYF_SUM,
-                                                   4900000,       4950000}; // KER_CORR,
-   static const uint64_t streamOffset = 90000;
+    // TODO: Maybe we could pass this table through the init function.
+    // So it could be prepared for each thread ctx individually. With
+    // that we could get rid of the static stream offset...
+    //                                             Block 0,      Block 1
+    uint64_t h_targetOffsets[KER_NOF*nofBlocks] = {0,            0, // KER_XF_SQR_NORM
+                                                   300000,       0, // KER_YF_SQR_NORM
+                                                   550000,       1000000, // KER_YF_CONJ,
+                                                   1700000,      2500000, // KER_XF_MUL,
+                                                   3650000,      3700000, // KER_XYF_SUM,
+                                                   3900000,      4000000}; // KER_CORR,
+
+   static const uint64_t streamOffset = 125000;
 #endif
 
     // Indicates the current kcf frame number

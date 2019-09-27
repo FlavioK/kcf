@@ -67,8 +67,9 @@ void KCF_Tracker::GaussianCorrelation::operator()(ComplexMat &result, const Comp
             // Only one thread should get the scheduling start time
             ProfCUDA::getStartTime();
         }
-#endif
+#else
         ProfCUDA::getStartTime();
+#endif
 #endif
         pthread_barrier_wait(&ctx.barrier);
 #ifdef PROFILE_GAUSSIAN
